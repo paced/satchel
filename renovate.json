@@ -12,25 +12,8 @@
     "automerge": true,
     "automergeType": "branch"
   },
-  "hostRules": [
-    {
-      "hostType": "npm",
-      "matchHost": "npm.pkg.github.com",
-      "token": "{{ secrets.INKLING_PACKAGES_GITHUB_TOKEN }}"
-    }
-  ],
+  "hostRules": [],
   "packageRules": [
-    {
-      "matchDatasources": [
-        "npm"
-      ],
-      "matchPackageNames": [
-        "@teaminkling/**"
-      ],
-      "registryUrls": [
-        "https://npm.pkg.github.com"
-      ]
-    },
     {
       "groupName": "chore: dev dependencies safe update",
       "matchDepTypes": [

@@ -1,7 +1,7 @@
 import { processSteamGames } from "./handlers/steam";
-import { createLogger } from "./handlers/logger";
 import { upsertAllSteamGames } from "./handlers/directus";
 import { ArgumentParser } from "argparse";
+import { createLogger } from "./utils/logger";
 
 async function main() {
   const parser = new ArgumentParser({
@@ -16,14 +16,14 @@ async function main() {
     action: "store_true",
     help: "disable cache usage, useful for refreshing Steam data",
   });
-  parser.add_argument("--skip-steam-api-calls", {
-    action: "store_true",
-    help: "skip processing Steam data in rare cases where no Steam API calls are desired",
-  });
   parser.add_argument("-s", "--steam-ids", {
     nargs: "*",
     type: "str",
     help: "specific Steam IDs; if omitted Steam games will not be processed",
+  });
+  parser.add_argument("-l", "--language", {
+    type: "str",
+    help: "language for Steam data (default: english)",
   });
 
   const args = parser.parse_args();
@@ -36,16 +36,17 @@ async function main() {
 
   logger.info("verbose = %s", args.verbose || false);
   logger.info("no_cache = %s", args.no_cache || false);
-  logger.info("skip_steam = %s", args.skip_steam_api_calls || false);
 
   logger.info("steam_ids (#) = %d", args.steam_ids ? args.steam_ids.length : 0);
+  logger.info("language = %s", args.language || "english");
 
   if (args.steam_ids.length > 0) {
     const steamGames = await processSteamGames(
       args.steam_ids,
       {
+        debug: args.verbose || false,
+        language: args.language || "english",
         useCache: !args.no_cache,
-        skip: args.skip,
       },
       logger,
     );

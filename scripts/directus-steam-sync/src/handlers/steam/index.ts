@@ -1,23 +1,14 @@
-import { config } from "dotenv";
 import {
   loadGameInfoCache,
   loadKnownDeletedGamesCache,
-  loadOwnedGamesCache,
   updateKnownDeletedGamesCache,
-  updateOwnedGamesCache,
   updateSteamGameInfoCache,
 } from "./caches";
 import { Logger } from "pino";
-
-const { parsed } = config({ quiet: true });
-
-const STEAM_API_KEY = parsed?.STEAM_API_KEY || "";
-
-const STEAM_API_ENDPOINT = "https://api.steampowered.com";
-const STEAM_STORE_API_ENDPOINT = "https://store.steampowered.com/api";
-
-const STEAM_API_GET_OWNED_GAMES_METHOD = "IPlayerService/GetOwnedGames/v0001";
-const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
+import { createLookupUrl, fetchOwnedGames, lookupSteamGame } from "./api";
+import { ProcessedSteamGameInfo } from "./types";
+import { mapSteamAppToProcessedGameInfo } from "./mappers";
+import { logProgress } from "../../utils/logger";
 
 /**
  * Delay between Steam Store API requests to avoid rate limiting.
@@ -35,43 +26,12 @@ const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
  */
 const STEAM_STORE_API_SLEEP_MS = 3000;
 
-/**
- * Threshold for what is considered a "long" time in milliseconds for warning the user.
- */
-const LONG_TIME_IN_MS = 30 * 1000;
-
 const DEFAULT_LANGUAGE = "english";
 const DEFAULT_PROCESS_GAME_OPTIONS: ProcessGamesOptions = {
   debug: false,
   language: DEFAULT_LANGUAGE,
   useCache: true,
-  skip: false,
 };
-
-export interface ProcessedSteamGameInfo {
-  appId: number;
-  name: string;
-
-  detailed_description: string;
-  about_the_game: string;
-  short_description: string;
-
-  header_image: string;
-  capsule_image: string;
-  capsule_imagev5: string;
-  movies: any[];
-  screenshots: any[];
-  background: string;
-  background_raw: string;
-
-  developers: string[];
-  publishers: string[];
-
-  metacritic_score: number | null;
-
-  categories: string[];
-  genres: string[];
-}
 
 interface ProcessGamesOptions {
   debug?: boolean;
@@ -81,19 +41,6 @@ interface ProcessGamesOptions {
    * Whether to use the existing game info cache to avoid re-fetching data from the Steam Store API.
    */
   useCache?: boolean;
-
-  /**
-   * Whether to skip processing games entirely.
-   *
-   * This is useful when you know that no games need to be processed.
-   *
-   * ## Notes
-   *
-   * If this is set to true, then the cache must be used as well, or else the function will return nothing. It is
-   * generally advisable to not use the skip option since this script can handle for games known to be deleted from
-   * Steam gracefully.
-   */
-  skip?: boolean;
 }
 
 // TODO: Make top level function where all the logs are and other functions more pure.
@@ -132,10 +79,6 @@ export async function processSteamGames(
     ...options,
   };
 
-  if (finalOptions.skip && !finalOptions.useCache) {
-    logger.error("skip option is set to true but useCache is false, which will result in no data being returned");
-  }
-
   const combinedGames: ProcessedSteamGameInfo[] = [];
   for (const targetId of targetIds) {
     logger.info(
@@ -162,7 +105,7 @@ export async function processSteamGames(
 }
 
 async function processSteamGamesForSingleUser(targetSteamId: string, options: ProcessGamesOptions, logger: Logger) {
-  const ownedSteamAppIds: number[] = await fetchOwnedGames(targetSteamId, !options.skip, logger);
+  const ownedSteamAppIds: number[] = await fetchOwnedGames(targetSteamId, logger);
 
   logger.info("---------");
   logger.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
@@ -174,22 +117,10 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
 
-  const totalGamesExpectedToProcess = ownedSteamAppIds.length - cachedGameInfos.length - knownDeletedAppIds.length;
-  if (!options.skip && totalGamesExpectedToProcess * STEAM_STORE_API_SLEEP_MS > LONG_TIME_IN_MS) {
-    logger.warn(
-      "processing %d games with a delay of %d ms each may take a long time (over %d seconds)...",
-      totalGamesExpectedToProcess,
-      STEAM_STORE_API_SLEEP_MS,
-      Math.round((totalGamesExpectedToProcess * STEAM_STORE_API_SLEEP_MS) / 1000),
-    );
-  }
-
   logger.info("beginning processing of %d owned Steam games...", ownedSteamAppIds.length);
 
   for (const appId of ownedSteamAppIds) {
-    if (!options.skip) {
-      logFetchProgress(ownedSteamAppIds.length, ownedSteamAppIds.indexOf(appId) + 1, logger);
-    }
+    logProgress(ownedSteamAppIds.indexOf(appId) + 1, ownedSteamAppIds.length, "game", logger);
 
     const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === appId);
     if (existingGameIndex !== -1) {
@@ -212,16 +143,10 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
 
       continue;
     }
-
-    // Skip must happen here to allow loading from cache above.
-
-    if (options.skip) {
-      continue;
-    }
-
     await new Promise((resolve) => setTimeout(resolve, STEAM_STORE_API_SLEEP_MS));
 
-    const appData = await lookupSteamGame(appId, options.language || DEFAULT_LANGUAGE, logger);
+    const lookupUrl = createLookupUrl(appId, options.language || DEFAULT_LANGUAGE);
+    const appData = await lookupSteamGame(lookupUrl, appId, options.language || DEFAULT_LANGUAGE, logger);
     if (!appData || !appData[appId] || !appData[appId].success) {
       logger.warn(`failure for app ID %d, it may have been removed from Steam!`, appId);
       failedGameInfos.push(appId);
@@ -233,7 +158,7 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
       continue;
     }
 
-    const parsedGameInfo = mapSteamAppToProcessedGameInfo(appData[appId].data, logger);
+    const parsedGameInfo = mapSteamAppToProcessedGameInfo(appData[appId].data, lookupUrl, logger);
     if (parsedGameInfo) {
       gameInfos.push(parsedGameInfo);
     }
@@ -252,125 +177,4 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   }
 
   return gameInfos;
-}
-
-async function fetchOwnedGames(targetSteamId: string, force = false, logger: Logger) {
-  logger.info("---------");
-  logger.info("DETERMINING USER'S STEAM GAMES");
-  logger.info("---------");
-
-  if (!force) {
-    return await loadOwnedGamesCache(targetSteamId, logger);
-  }
-
-  logger.info("(re)fetching library games for SteamID %s...", targetSteamId);
-
-  const steamApiUrl = new URL(`${STEAM_API_ENDPOINT}/${STEAM_API_GET_OWNED_GAMES_METHOD}/`);
-
-  steamApiUrl.searchParams.append("key", STEAM_API_KEY);
-  steamApiUrl.searchParams.append("steamid", targetSteamId);
-  steamApiUrl.searchParams.append("format", "json");
-
-  const steamApiUrlString = steamApiUrl.href;
-
-  logger.debug("fetching Steam data from URL: %s...", steamApiUrlString);
-
-  const result = await fetch(steamApiUrlString);
-
-  const data = await result.json();
-
-  const gameCount = data.response.game_count;
-  const games = data.response.games;
-
-  logger.info(`...(re)fetch complete; user has %d games in their library`, gameCount);
-
-  const appIds: number[] = [];
-  games.forEach((game: any) => {
-    appIds.push(game.appid);
-  });
-
-  await updateOwnedGamesCache(targetSteamId, appIds, logger);
-
-  return appIds;
-}
-
-function logFetchProgress(basicGameInfoLength: number, iterationIndexFromOne: number, logger: Logger) {
-  let modulo = 10;
-  if (basicGameInfoLength > 1000) {
-    modulo = 100;
-  } else if (basicGameInfoLength > 500) {
-    modulo = 50;
-  } else if (basicGameInfoLength > 100) {
-    modulo = 20;
-  }
-
-  if (iterationIndexFromOne % modulo === 0 || iterationIndexFromOne === basicGameInfoLength) {
-    logger.info(
-      `progress: processing game %d of %d (%d)\%`,
-      iterationIndexFromOne,
-      basicGameInfoLength,
-      Math.round((iterationIndexFromOne / basicGameInfoLength) * 100),
-    );
-  }
-}
-
-async function lookupSteamGame(appId: number, language: string, logger: Logger) {
-  const steamStoreApiUrl = new URL(`${STEAM_STORE_API_ENDPOINT}/${STEAM_STORE_API_APP_DETAILS_METHOD}/`);
-
-  steamStoreApiUrl.searchParams.append("appids", appId.toString());
-  steamStoreApiUrl.searchParams.append("l", language);
-
-  const steamStoreApiUrlString = steamStoreApiUrl.href;
-
-  logger.debug("fetching Steam Store data from URL: %s", steamStoreApiUrlString);
-
-  try {
-    const result = await fetch(steamStoreApiUrlString);
-    if (result.status === 429) {
-      logger.error("rate limited by Steam Store API");
-
-      return;
-    }
-
-    return await result.json();
-  } catch (_err) {
-    logger.error(`failed to fetch app ID %d and not rate limited`, appId);
-  }
-}
-
-function mapSteamAppToProcessedGameInfo(data: any, logger: Logger): ProcessedSteamGameInfo | undefined {
-  try {
-    return {
-      appId: data.appId,
-      name: data.name,
-
-      // For Directus, only the short description is actually used.
-
-      detailed_description: data.detailed_description,
-      about_the_game: data.about_the_game,
-      short_description: data.short_description,
-
-      // For Directus, only the header image of all of these is actually used.
-
-      header_image: data.header_image,
-      capsule_image: data.capsule_image,
-      capsule_imagev5: data.capsule_imagev5,
-      movies: data.movies || [],
-      screenshots: data.screenshots || [],
-      background: data.background,
-      background_raw: data.background_raw,
-
-      developers: data.developers,
-      publishers: data.publishers,
-
-      metacritic_score: data.metacritic ? data.metacritic.score : null,
-
-      // Genre is considered a category in Directus.
-
-      categories: data.categories ? data.categories.map((category: any) => category.description) : [],
-      genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
-    };
-  } catch (err) {
-    logger.error(`failed to process app ID %d: %s`, data.appId, err);
-  }
 }

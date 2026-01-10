@@ -1,10 +1,10 @@
-import { ProcessedSteamGameInfo } from "./index";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { Logger } from "pino";
+import { ProcessedSteamGameInfo } from "./types";
 
-const GAME_INFO_CACHE_PATH = "out/game-info-cache.json";
-const GAME_OWNED_CACHE_PATH = "out/owned-games-cache-%d.json";
-const GAME_KNOWN_DELETED_CACHE_PATH = "out/known-deleted-games-cache.json";
+const GAME_INFO_CACHE_PATH = "out/steam-game-info-cache.json";
+const GAME_OWNED_CACHE_PATH = "out/steam-owned-games-cache-%d.json";
+const GAME_KNOWN_DELETED_CACHE_PATH = "out/steam-known-deleted-games-cache.json";
 
 export async function loadGameInfoCache(logger: Logger): Promise<ProcessedSteamGameInfo[]> {
   let cachedGameInfos: ProcessedSteamGameInfo[] = [];

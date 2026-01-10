@@ -1,7 +1,8 @@
 import { createDirectus, createItem, readItems, rest, staticToken, updateItem } from "@directus/sdk";
 import { config } from "dotenv";
-import { ProcessedSteamGameInfo } from "./steam";
 import { Logger } from "pino";
+import { ProcessedSteamGameInfo } from "./steam/types";
+import { logProgress } from "../utils/logger";
 
 const { parsed } = config({ quiet: true });
 
@@ -21,6 +22,7 @@ const DIRECTUS_GAME_URL_KEY = "URL";
 const DIRECTUS_GAME_THUMBNAIL_KEY = "Thumbnail";
 const DIRECTUS_GAME_DESCRIPTION_KEY = "Description";
 const DIRECTUS_GAME_TAGS_KEY = "Tags";
+const DIRECTUS_GAME_METACRITIC_SCORE_KEY = "Metacritic_Score";
 
 /**
  * The total number of supported pages we'll attempt to fetch.
@@ -53,18 +55,17 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
   for (const gameData of steamGameData) {
     const directusItemId = steamAppIdToDirectusItemIdMap[gameData.appId]?.id;
 
-    // TODO: This is extremely spammy for a large amount of games, but useful. Change to debug and for info, set to
-    //       modulo-based logging.
+    logProgress(steamGameData.indexOf(gameData) + 1, steamGameData.length, "Directus upsert", logger);
 
     if (directusItemId) {
-      logger.info(
+      logger.debug(
         "updating existing Directus item ID %d for Steam App ID %d (%s)",
         directusItemId,
         gameData.appId,
         gameData.name,
       );
     } else {
-      logger.info("creating new Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
+      logger.debug("creating new Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
     }
 
     // Note any of the Steam data below can and should be overridden, while the other values remain unchanged.
@@ -80,6 +81,7 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       [DIRECTUS_GAME_DESCRIPTION_KEY]: gameData.short_description,
       [DIRECTUS_GAME_TAGS_KEY]: [...gameData.genres, ...gameData.categories],
       [DIRECTUS_GAME_STEAM_ID_KEY]: gameData.appId,
+      [DIRECTUS_GAME_METACRITIC_SCORE_KEY]: gameData.metacritic_score,
     };
 
     if (directusItemId) {

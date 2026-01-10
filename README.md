@@ -4,6 +4,8 @@ Scripts are all written in TypeScript and use Moonrepo for monorepo management.
 
 ## Sync Directus with Steam Library (directus-steam-sync)
 
+This script fetches your Steam library information and syncs it with a Directus instance.
+
 ### Usage
 
 ```shell

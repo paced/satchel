@@ -2,16 +2,22 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "pnpm run build; node dist/index.cjs",
+    "build": "tsc; esbuild build/index.js --platform=node --bundle --minify --outfile=dist/index.cjs",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "packageManager": "pnpm@10.6.2",
+  "dependencies": {
+    "argparse": "^2.0.1",
+    "dotenv": "^17.2.3"
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@types/argparse": "^2.0.17",
+    "@types/node": "^25.0.5",
+    "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3",

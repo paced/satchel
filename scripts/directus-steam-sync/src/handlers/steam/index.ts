@@ -1,6 +1,13 @@
 import LOGGER from "../logger";
 import { config } from "dotenv";
-import { loadGameInfoCache, loadOwnedGamesCache, updateOwnedGamesCache, updateSteamGameInfoCache } from "./caches";
+import {
+  loadGameInfoCache,
+  loadKnownDeletedGamesCache,
+  loadOwnedGamesCache,
+  updateKnownDeletedGamesCache,
+  updateOwnedGamesCache,
+  updateSteamGameInfoCache,
+} from "./caches";
 
 const { parsed } = config({ quiet: true });
 
@@ -37,6 +44,11 @@ const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
  * continue with unprocessed games. However, be aware that excessive requests may lead to longer bans.
  */
 const STEAM_STORE_API_SLEEP_MS = 3000;
+
+const DEFAULT_PROCESS_GAME_OPTIONS: ProcessGamesOptions = {
+  useCache: true,
+  skip: false,
+};
 
 export interface ProcessedSteamGameInfo {
   appId: number;
@@ -76,7 +88,9 @@ interface ProcessGamesOptions {
    *
    * ## Notes
    *
-   * If this is set to true, then the cache must be used as well, or else the function will return nothing.
+   * If this is set to true, then the cache must be used as well, or else the function will return nothing. It is
+   * generally advisable to not use the skip option since this script can handle for games known to be deleted from
+   * Steam gracefully.
    */
   skip?: boolean;
 }
@@ -99,24 +113,30 @@ interface ProcessGamesOptions {
  * @returns {Promise<ProcessedSteamGameInfo[]>} the processed game information
  */
 export async function processSteamGames(
-  options: ProcessGamesOptions = { useCache: true, skip: false },
+  options: ProcessGamesOptions = DEFAULT_PROCESS_GAME_OPTIONS,
 ): Promise<ProcessedSteamGameInfo[]> {
-  if (options.skip && !options.useCache) {
+  const finalOptions: ProcessGamesOptions = {
+    ...DEFAULT_PROCESS_GAME_OPTIONS,
+    ...options,
+  };
+
+  if (finalOptions.skip && !finalOptions.useCache) {
     LOGGER.error("skip option is set to true but useCache is false, which will result in no data being returned");
   }
 
-  const ownedSteamAppIds: number[] = await fetchOwnedGames(!options.skip);
-  const cachedGameInfos: ProcessedSteamGameInfo[] = options.useCache ? await loadGameInfoCache() : [];
+  const ownedSteamAppIds: number[] = await fetchOwnedGames(!finalOptions.skip);
+  const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache ? await loadGameInfoCache() : [];
+  const knownDeletedAppIds: number[] = await loadKnownDeletedGamesCache();
 
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
 
-  LOGGER.info("---------")
+  LOGGER.info("---------");
   LOGGER.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
-  LOGGER.info("---------")
+  LOGGER.info("---------");
 
   for (const appId of ownedSteamAppIds) {
-    if (!options.skip) {
+    if (!finalOptions.skip) {
       logFetchProgress(ownedSteamAppIds.length, ownedSteamAppIds.indexOf(appId) + 1);
     }
 
@@ -135,9 +155,16 @@ export async function processSteamGames(
       continue;
     }
 
+    if (knownDeletedAppIds.includes(appId)) {
+      LOGGER.debug("skipping known deleted app ID %d", appId);
+      failedGameInfos.push(appId);
+
+      continue;
+    }
+
     // Skip must happen here to allow loading from cache above.
 
-    if (options.skip) {
+    if (finalOptions.skip) {
       continue;
     }
 
@@ -147,6 +174,10 @@ export async function processSteamGames(
     if (!appData || !appData[appId] || !appData[appId].success) {
       LOGGER.warn(`failure for app ID %d, it may have been removed from Steam!`, appId);
       failedGameInfos.push(appId);
+
+      if (appData[appId] && appData[appId].success === false) {
+        knownDeletedAppIds.push(appId);
+      }
 
       continue;
     }
@@ -158,23 +189,24 @@ export async function processSteamGames(
   }
 
   if (failedGameInfos.length > 0) {
-    LOGGER.warn(`could not process %d games`, failedGameInfos.length);
-    failedGameInfos.forEach(game => {
+    LOGGER.warn(`could not/skipped process %d games`, failedGameInfos.length);
+    failedGameInfos.forEach((game) => {
       LOGGER.warn(` - app ID ${game}`);
     });
   }
 
-  if (options.useCache) {
+  if (finalOptions.useCache) {
     await updateSteamGameInfoCache(cachedGameInfos, gameInfos);
+    await updateKnownDeletedGamesCache(knownDeletedAppIds);
   }
 
   return gameInfos;
 }
 
 async function fetchOwnedGames(force = false) {
-  LOGGER.info("---------")
+  LOGGER.info("---------");
   LOGGER.info("DETERMINING USER'S STEAM GAMES");
-  LOGGER.info("---------")
+  LOGGER.info("---------");
 
   if (!force) {
     return await loadOwnedGamesCache(TARGET_STEAM_ID);

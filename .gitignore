@@ -44,3 +44,4 @@ next-env.d.ts
 
 # project
 !scripts/directus-steam-sync/out/game-info-cache.json
+!scripts/directus-steam-sync/out/known-deleted-games-cache.json

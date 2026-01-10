@@ -5,7 +5,7 @@ import { upsertSteamGame } from "./handlers/directus";
 async function main() {
   // TODO: Control this with argparse.
 
-  const steamGames = await processSteamGames({ useCache: true, skip: false });
+  const steamGames = await processSteamGames();
   await upsertSteamGame(steamGames);
 }
 

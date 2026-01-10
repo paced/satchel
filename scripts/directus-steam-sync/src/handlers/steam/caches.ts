@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const GAME_INFO_CACHE_PATH = "out/game-info-cache.json";
 const GAME_OWNED_CACHE_PATH = "out/owned-games-cache-%d.json";
+const GAME_KNOWN_DELETED_CACHE_PATH = "out/known-deleted-games-cache.json";
 
 export async function loadGameInfoCache(): Promise<ProcessedSteamGameInfo[]> {
   let cachedGameInfos: ProcessedSteamGameInfo[] = [];
@@ -22,7 +23,10 @@ export async function loadGameInfoCache(): Promise<ProcessedSteamGameInfo[]> {
   return cachedGameInfos;
 }
 
-export async function updateSteamGameInfoCache(existingGameInfos: ProcessedSteamGameInfo[], gameInfos: ProcessedSteamGameInfo[]): Promise<void> {
+export async function updateSteamGameInfoCache(
+  existingGameInfos: ProcessedSteamGameInfo[],
+  gameInfos: ProcessedSteamGameInfo[],
+): Promise<void> {
   try {
     const combinedGameInfos = [...existingGameInfos, ...gameInfos];
 
@@ -73,5 +77,35 @@ export async function updateOwnedGamesCache(targetSteamId: string, appIds: numbe
     LOGGER.info("wrote %d owned app IDs to owned game cache", sortedAppIds.length);
   } catch (err) {
     LOGGER.error("failed to write owned games cache file: %s", err);
+  }
+}
+
+export async function loadKnownDeletedGamesCache(): Promise<number[]> {
+  let knownDeletedAppIds: number[] = [];
+  try {
+    const cacheData = await readFile(GAME_KNOWN_DELETED_CACHE_PATH, "utf-8");
+
+    knownDeletedAppIds = JSON.parse(cacheData);
+
+    LOGGER.info("loaded %d known deleted Steam app IDs from cache", knownDeletedAppIds.length);
+  } catch (err) {
+    LOGGER.info("no known deleted games cache file found, will create new cache");
+
+    knownDeletedAppIds = [];
+  }
+
+  return knownDeletedAppIds;
+}
+
+export async function updateKnownDeletedGamesCache(appIds: number[]): Promise<void> {
+  try {
+    const sortedAppIds = appIds.sort((a, b) => a - b);
+
+    await mkdir("out", { recursive: true });
+    await writeFile(GAME_KNOWN_DELETED_CACHE_PATH, JSON.stringify(sortedAppIds, null, 2), "utf-8");
+
+    LOGGER.info("wrote %d known deleted app IDs to cache", sortedAppIds.length);
+  } catch (err) {
+    LOGGER.error("failed to write known deleted games cache file: %s", err);
   }
 }

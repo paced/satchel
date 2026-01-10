@@ -1,4 +1,3 @@
-import LOGGER from "../logger";
 import { config } from "dotenv";
 import {
   loadGameInfoCache,
@@ -8,22 +7,11 @@ import {
   updateOwnedGamesCache,
   updateSteamGameInfoCache,
 } from "./caches";
+import { Logger } from "pino";
 
 const { parsed } = config({ quiet: true });
 
 const STEAM_API_KEY = parsed?.STEAM_API_KEY || "";
-if (!STEAM_API_KEY) {
-  LOGGER.error("missing STEAM_API_KEY in envars");
-  process.exit(1);
-}
-
-const TARGET_STEAM_ID = parsed?.TARGET_STEAM_ID || "";
-if (!TARGET_STEAM_ID) {
-  LOGGER.error("missing TARGET_STEAM_ID in envars");
-  process.exit(1);
-}
-
-const LANGUAGE = parsed?.STEAM_API_LANGUAGE || "english";
 
 const STEAM_API_ENDPOINT = "https://api.steampowered.com";
 const STEAM_STORE_API_ENDPOINT = "https://store.steampowered.com/api";
@@ -52,7 +40,10 @@ const STEAM_STORE_API_SLEEP_MS = 3000;
  */
 const LONG_TIME_IN_MS = 30 * 1000;
 
+const DEFAULT_LANGUAGE = "english";
 const DEFAULT_PROCESS_GAME_OPTIONS: ProcessGamesOptions = {
+  debug: false,
+  language: DEFAULT_LANGUAGE,
   useCache: true,
   skip: false,
 };
@@ -83,6 +74,9 @@ export interface ProcessedSteamGameInfo {
 }
 
 interface ProcessGamesOptions {
+  debug?: boolean;
+  language?: string;
+
   /**
    * Whether to use the existing game info cache to avoid re-fetching data from the Steam Store API.
    */
@@ -102,6 +96,8 @@ interface ProcessGamesOptions {
   skip?: boolean;
 }
 
+// TODO: Make top level function where all the logs are and other functions more pure.
+
 /**
  * Fetches and "processes" the games owned by a Steam user, most likely the user associated with the API key.
  *
@@ -116,11 +112,20 @@ interface ProcessGamesOptions {
  *    any other script that may want to use this data. However, when running the entire script, the return of this
  *    function is used directly to import into Directus without more file I/O.
  *
+ * ## Notes
+ *
+ * Note that the cache is written multiple times if there are multiple target IDs. This is to ensure that if the script
+ * is interrupted, the cache is still updated for previously processed users, and is currently relatively low-cost.
+ *
+ * @param targetIds {string} the target Steam IDs to process
  * @param options {ProcessGamesOptions} options for processing games
+ * @param logger {Logger} the logger for the CLI
  * @returns {Promise<ProcessedSteamGameInfo[]>} the processed game information
  */
 export async function processSteamGames(
+  targetIds: string[],
   options: ProcessGamesOptions = DEFAULT_PROCESS_GAME_OPTIONS,
+  logger: Logger,
 ): Promise<ProcessedSteamGameInfo[]> {
   const finalOptions: ProcessGamesOptions = {
     ...DEFAULT_PROCESS_GAME_OPTIONS,
@@ -128,24 +133,50 @@ export async function processSteamGames(
   };
 
   if (finalOptions.skip && !finalOptions.useCache) {
-    LOGGER.error("skip option is set to true but useCache is false, which will result in no data being returned");
+    logger.error("skip option is set to true but useCache is false, which will result in no data being returned");
   }
 
-  const ownedSteamAppIds: number[] = await fetchOwnedGames(!finalOptions.skip);
+  const combinedGames: ProcessedSteamGameInfo[] = [];
+  for (const targetId of targetIds) {
+    logger.info(
+      "========= PROCESSING STEAM ID: %s (USER %d of %d) =========",
+      targetId,
+      targetIds.indexOf(targetId) + 1,
+      targetIds.length,
+    );
 
-  LOGGER.info("---------");
-  LOGGER.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
-  LOGGER.info("---------");
+    const userGames = await processSteamGamesForSingleUser(targetId, finalOptions, logger);
+    combinedGames.push(...userGames);
+  }
 
-  const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache ? await loadGameInfoCache() : [];
-  const knownDeletedAppIds: number[] = finalOptions.useCache ? await loadKnownDeletedGamesCache() : [];
+  const uniqueGamesMap: Record<number, ProcessedSteamGameInfo> = {};
+  combinedGames.forEach((game) => {
+    uniqueGamesMap[game.appId] = game;
+  });
+
+  const uniqueGames = Object.values(uniqueGamesMap).sort((a, b) => a.appId - b.appId);
+
+  logger.info("total unique Steam games processed across all users: %d", uniqueGames.length);
+
+  return combinedGames;
+}
+
+async function processSteamGamesForSingleUser(targetSteamId: string, options: ProcessGamesOptions, logger: Logger) {
+  const ownedSteamAppIds: number[] = await fetchOwnedGames(targetSteamId, !options.skip, logger);
+
+  logger.info("---------");
+  logger.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
+  logger.info("---------");
+
+  const cachedGameInfos: ProcessedSteamGameInfo[] = options.useCache ? await loadGameInfoCache() : [];
+  const knownDeletedAppIds: number[] = options.useCache ? await loadKnownDeletedGamesCache() : [];
 
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
 
   const totalGamesExpectedToProcess = ownedSteamAppIds.length - cachedGameInfos.length - knownDeletedAppIds.length;
-  if (!finalOptions.skip && totalGamesExpectedToProcess * STEAM_STORE_API_SLEEP_MS > LONG_TIME_IN_MS) {
-    LOGGER.warn(
+  if (!options.skip && totalGamesExpectedToProcess * STEAM_STORE_API_SLEEP_MS > LONG_TIME_IN_MS) {
+    logger.warn(
       "processing %d games with a delay of %d ms each may take a long time (over %d seconds)...",
       totalGamesExpectedToProcess,
       STEAM_STORE_API_SLEEP_MS,
@@ -153,30 +184,30 @@ export async function processSteamGames(
     );
   }
 
-  LOGGER.info("beginning processing of %d owned Steam games...", ownedSteamAppIds.length);
+  logger.info("beginning processing of %d owned Steam games...", ownedSteamAppIds.length);
 
   for (const appId of ownedSteamAppIds) {
-    if (!finalOptions.skip) {
-      logFetchProgress(ownedSteamAppIds.length, ownedSteamAppIds.indexOf(appId) + 1);
+    if (!options.skip) {
+      logFetchProgress(ownedSteamAppIds.length, ownedSteamAppIds.indexOf(appId) + 1, logger);
     }
 
     const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === appId);
     if (existingGameIndex !== -1) {
-      LOGGER.debug("duplicate app ID %d found, skipping duplicate", appId);
+      logger.debug("duplicate app ID %d found, skipping duplicate", appId);
 
       continue;
     }
 
     const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === appId);
     if (cachedGameInfo) {
-      LOGGER.debug("using cached data for app ID %d", appId);
+      logger.debug("using cached data for app ID %d", appId);
       gameInfos.push(cachedGameInfo);
 
       continue;
     }
 
     if (knownDeletedAppIds.includes(appId)) {
-      LOGGER.debug("skipping known deleted app ID %d", appId);
+      logger.debug("skipping known deleted app ID %d", appId);
       failedGameInfos.push(appId);
 
       continue;
@@ -184,15 +215,15 @@ export async function processSteamGames(
 
     // Skip must happen here to allow loading from cache above.
 
-    if (finalOptions.skip) {
+    if (options.skip) {
       continue;
     }
 
     await new Promise((resolve) => setTimeout(resolve, STEAM_STORE_API_SLEEP_MS));
 
-    const appData = await lookupSteamGame(appId);
+    const appData = await lookupSteamGame(appId, options.language || DEFAULT_LANGUAGE, logger);
     if (!appData || !appData[appId] || !appData[appId].success) {
-      LOGGER.warn(`failure for app ID %d, it may have been removed from Steam!`, appId);
+      logger.warn(`failure for app ID %d, it may have been removed from Steam!`, appId);
       failedGameInfos.push(appId);
 
       if (appData[appId] && appData[appId].success === false) {
@@ -202,20 +233,20 @@ export async function processSteamGames(
       continue;
     }
 
-    const parsedGameInfo = mapSteamAppToProcessedGameInfo(appData[appId].data);
+    const parsedGameInfo = mapSteamAppToProcessedGameInfo(appData[appId].data, logger);
     if (parsedGameInfo) {
       gameInfos.push(parsedGameInfo);
     }
   }
 
   if (failedGameInfos.length > 0) {
-    LOGGER.warn(`could not/skipped process %d games`, failedGameInfos.length);
+    logger.warn(`could not/skipped process %d games`, failedGameInfos.length);
     failedGameInfos.forEach((game) => {
-      LOGGER.warn(` - app ID ${game}`);
+      logger.warn(` - app ID ${game}`);
     });
   }
 
-  if (finalOptions.useCache) {
+  if (options.useCache) {
     await updateSteamGameInfoCache(cachedGameInfos, gameInfos);
     await updateKnownDeletedGamesCache(knownDeletedAppIds);
   }
@@ -223,26 +254,26 @@ export async function processSteamGames(
   return gameInfos;
 }
 
-async function fetchOwnedGames(force = false) {
-  LOGGER.info("---------");
-  LOGGER.info("DETERMINING USER'S STEAM GAMES");
-  LOGGER.info("---------");
+async function fetchOwnedGames(targetSteamId: string, force = false, logger: Logger) {
+  logger.info("---------");
+  logger.info("DETERMINING USER'S STEAM GAMES");
+  logger.info("---------");
 
   if (!force) {
-    return await loadOwnedGamesCache(TARGET_STEAM_ID);
+    return await loadOwnedGamesCache(targetSteamId);
   }
 
-  LOGGER.info("(re)fetching library games for SteamID %s...", TARGET_STEAM_ID);
+  logger.info("(re)fetching library games for SteamID %s...", targetSteamId);
 
   const steamApiUrl = new URL(`${STEAM_API_ENDPOINT}/${STEAM_API_GET_OWNED_GAMES_METHOD}/`);
 
   steamApiUrl.searchParams.append("key", STEAM_API_KEY);
-  steamApiUrl.searchParams.append("steamid", TARGET_STEAM_ID);
+  steamApiUrl.searchParams.append("steamid", targetSteamId);
   steamApiUrl.searchParams.append("format", "json");
 
   const steamApiUrlString = steamApiUrl.href;
 
-  LOGGER.debug("fetching Steam data from URL: %s...", steamApiUrlString);
+  logger.debug("fetching Steam data from URL: %s...", steamApiUrlString);
 
   const result = await fetch(steamApiUrlString);
 
@@ -251,19 +282,19 @@ async function fetchOwnedGames(force = false) {
   const gameCount = data.response.game_count;
   const games = data.response.games;
 
-  LOGGER.info(`...(re)fetch complete; user has %d games in their library`, gameCount);
+  logger.info(`...(re)fetch complete; user has %d games in their library`, gameCount);
 
   const appIds: number[] = [];
   games.forEach((game: any) => {
     appIds.push(game.appid);
   });
 
-  await updateOwnedGamesCache(TARGET_STEAM_ID, appIds);
+  await updateOwnedGamesCache(targetSteamId, appIds);
 
   return appIds;
 }
 
-function logFetchProgress(basicGameInfoLength: number, iterationIndexFromOne: number) {
+function logFetchProgress(basicGameInfoLength: number, iterationIndexFromOne: number, logger: Logger) {
   let modulo = 10;
   if (basicGameInfoLength > 1000) {
     modulo = 100;
@@ -274,7 +305,7 @@ function logFetchProgress(basicGameInfoLength: number, iterationIndexFromOne: nu
   }
 
   if (iterationIndexFromOne % modulo === 0 || iterationIndexFromOne === basicGameInfoLength) {
-    LOGGER.info(
+    logger.info(
       `progress: processing game %d of %d (%d)\%`,
       iterationIndexFromOne,
       basicGameInfoLength,
@@ -283,31 +314,31 @@ function logFetchProgress(basicGameInfoLength: number, iterationIndexFromOne: nu
   }
 }
 
-async function lookupSteamGame(appId: number) {
+async function lookupSteamGame(appId: number, language: string, logger: Logger) {
   const steamStoreApiUrl = new URL(`${STEAM_STORE_API_ENDPOINT}/${STEAM_STORE_API_APP_DETAILS_METHOD}/`);
 
   steamStoreApiUrl.searchParams.append("appids", appId.toString());
-  steamStoreApiUrl.searchParams.append("l", LANGUAGE);
+  steamStoreApiUrl.searchParams.append("l", language);
 
   const steamStoreApiUrlString = steamStoreApiUrl.href;
 
-  LOGGER.debug("fetching Steam Store data from URL: %s", steamStoreApiUrlString);
+  logger.debug("fetching Steam Store data from URL: %s", steamStoreApiUrlString);
 
   try {
     const result = await fetch(steamStoreApiUrlString);
     if (result.status === 429) {
-      LOGGER.error("rate limited by Steam Store API");
+      logger.error("rate limited by Steam Store API");
 
       return;
     }
 
     return await result.json();
   } catch (_err) {
-    LOGGER.error(`failed to fetch app ID %d and not rate limited`, appId);
+    logger.error(`failed to fetch app ID %d and not rate limited`, appId);
   }
 }
 
-function mapSteamAppToProcessedGameInfo(data: any): ProcessedSteamGameInfo | undefined {
+function mapSteamAppToProcessedGameInfo(data: any, logger: Logger): ProcessedSteamGameInfo | undefined {
   try {
     return {
       appId: data.appId,
@@ -340,6 +371,6 @@ function mapSteamAppToProcessedGameInfo(data: any): ProcessedSteamGameInfo | und
       genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
     };
   } catch (err) {
-    LOGGER.error(`failed to process app ID %d: %s`, data.appId, err);
+    logger.error(`failed to process app ID %d: %s`, data.appId, err);
   }
 }

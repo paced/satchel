@@ -1,5 +1,5 @@
 import { processSteamGames } from "./handlers/steam";
-import LOGGER from "./handlers/logger";
+import { createLogger } from "./handlers/logger";
 import { upsertAllSteamGames } from "./handlers/directus";
 import { ArgumentParser } from "argparse";
 
@@ -8,9 +8,6 @@ async function main() {
     description: "syncing tool for game marketplaces to Directus",
   });
 
-  // TODO: Allow overriding envars by providing optional arguments.
-
-  // TODO: Use this instead of DEBUG.
   parser.add_argument("-v", "--verbose", {
     action: "store_true",
     help: "enable verbose logging",
@@ -19,30 +16,43 @@ async function main() {
     action: "store_true",
     help: "disable cache usage, useful for refreshing Steam data",
   });
-  parser.add_argument("-s", "--skip-steam", {
+  parser.add_argument("--skip-steam-api-calls", {
     action: "store_true",
     help: "skip processing Steam data in rare cases where no Steam API calls are desired",
+  });
+  parser.add_argument("-s", "--steam-ids", {
+    nargs: "*",
+    type: "str",
+    help: "specific Steam IDs; if omitted Steam games will not be processed",
   });
 
   const args = parser.parse_args();
 
-  LOGGER.info("---------");
-  LOGGER.info("STARTING");
-  LOGGER.info("---------");
+  const logger = createLogger(args.verbose);
 
-  LOGGER.info("verbose = %s", args.verbose || false);
-  LOGGER.info("no_cache = %s", args.no_cache || false);
-  LOGGER.info("skip_steam = %s", args.skip_steam || false);
+  logger.info("---------");
+  logger.info("STARTING");
+  logger.info("---------");
 
-  const steamGames = await processSteamGames({
-    useCache: !args.no_cache,
-    skip: args.skip,
-  });
+  logger.info("verbose = %s", args.verbose || false);
+  logger.info("no_cache = %s", args.no_cache || false);
+  logger.info("skip_steam = %s", args.skip_steam_api_calls || false);
+  logger.info("steam_ids = %s (count = %d)", args.steam_ids || "none", args.steam_ids ? args.steam_ids.length : 0);
 
-  await upsertAllSteamGames(steamGames);
+  if (args.steam_ids.length > 0) {
+    const steamGames = await processSteamGames(
+      args.steam_ids,
+      {
+        useCache: !args.no_cache,
+        skip: args.skip,
+      },
+      logger,
+    );
+
+    await upsertAllSteamGames(steamGames, logger);
+  }
 }
 
 main().catch((err) => {
-  LOGGER.error("unhandled error: %s", err);
-  process.exit(1);
+  throw new Error("unhandled error: %s", err);
 });

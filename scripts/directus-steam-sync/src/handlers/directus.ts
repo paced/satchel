@@ -1,21 +1,12 @@
 import { createDirectus, createItem, readItems, rest, staticToken, updateItem } from "@directus/sdk";
 import { config } from "dotenv";
-import LOGGER from "./logger";
 import { ProcessedSteamGameInfo } from "./steam";
+import { Logger } from "pino";
 
 const { parsed } = config({ quiet: true });
 
-const DIRECTUS_API_ENDPOINT = parsed?.DIRECTUS_API_ENDPOINT;
-if (!DIRECTUS_API_ENDPOINT) {
-  LOGGER.error("missing DIRECTUS_API_ENDPOINT in envars");
-  process.exit(1);
-}
-
-const DIRECTUS_API_TOKEN = parsed?.DIRECTUS_API_TOKEN;
-if (!DIRECTUS_API_TOKEN) {
-  LOGGER.error("missing DIRECTUS_API_TOKEN in envars");
-  process.exit(1);
-}
+const DIRECTUS_API_ENDPOINT = parsed?.DIRECTUS_API_ENDPOINT || "";
+const DIRECTUS_API_TOKEN = parsed?.DIRECTUS_API_TOKEN || "";
 
 const STEAM_STORE_URL_BASE = "https://store.steampowered.com/app";
 
@@ -45,19 +36,19 @@ const DIRECTUS_ITEMS_PAGE_SIZE = 1000;
 
 const DIRECTUS_CLIENT = createDirectus(DIRECTUS_API_ENDPOINT).with(staticToken(DIRECTUS_API_TOKEN)).with(rest());
 
-export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[]) {
+export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[], logger: Logger) {
   // App IDs do NOT match Directus item IDs. We need to always retrieve first.
 
-  LOGGER.info("---------");
-  LOGGER.info("RETRIEVING EXISTING GAMES FROM DIRECTUS");
-  LOGGER.info("---------");
+  logger.info("---------");
+  logger.info("RETRIEVING EXISTING GAMES FROM DIRECTUS");
+  logger.info("---------");
 
-  const existingGames = await fetchExistingGames();
+  const existingGames = await fetchExistingGames(logger);
   const steamAppIdToDirectusItemIdMap = createSteamAppIdToDirectusItemIdMap(existingGames);
 
-  LOGGER.info("---------");
-  LOGGER.info("UPSERTING GAMES TO DIRECTUS");
-  LOGGER.info("---------");
+  logger.info("---------");
+  logger.info("UPSERTING GAMES TO DIRECTUS");
+  logger.info("---------");
 
   for (const gameData of steamGameData) {
     const directusItemId = steamAppIdToDirectusItemIdMap[gameData.appId]?.id;
@@ -66,14 +57,14 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
     //       modulo-based logging.
 
     if (directusItemId) {
-      LOGGER.info(
+      logger.info(
         "updating existing Directus item ID %d for Steam App ID %d (%s)",
         directusItemId,
         gameData.appId,
         gameData.name,
       );
     } else {
-      LOGGER.info("creating new Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
+      logger.info("creating new Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
     }
 
     // Note any of the Steam data below can and should be overridden, while the other values remain unchanged.
@@ -95,14 +86,14 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       try {
         await DIRECTUS_CLIENT.request(updateItem(DIRECTUS_GAME_COLLECTION_NAME, directusItemId, data));
       } catch (err) {
-        LOGGER.error(
+        logger.error(
           "failed to update Directus item ID %d for Steam App ID %d (%s): %s",
           directusItemId,
           gameData.appId,
           gameData.name,
           JSON.stringify(err, null, 2),
         );
-        LOGGER.error("one failure here means others will likely fail; aborting");
+        logger.error("one failure here means others will likely fail; aborting");
 
         process.exit(1);
       }
@@ -110,13 +101,13 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       try {
         await DIRECTUS_CLIENT.request(createItem(DIRECTUS_GAME_COLLECTION_NAME, data));
       } catch (err) {
-        LOGGER.error(
+        logger.error(
           "failed to create Directus item for Steam App ID %d (%s): %s",
           gameData.appId,
           gameData.name,
           JSON.stringify(err, null, 2),
         );
-        LOGGER.error("one failure here means others will likely fail; aborting");
+        logger.error("one failure here means others will likely fail; aborting");
 
         process.exit(1);
       }
@@ -134,18 +125,18 @@ function createSteamAppIdToDirectusItemIdMap(existingGames: Record<number, any>)
   return map;
 }
 
-async function fetchExistingGames(): Promise<Record<number, any>> {
+async function fetchExistingGames(logger: Logger): Promise<Record<number, any>> {
   const existingGames: Record<number, any> = {};
 
-  LOGGER.info("fetching existing Directus games...");
+  logger.info("fetching existing Directus games...");
 
   for (let page = 1; page <= DIRECTUS_MAX_PAGES; page++) {
-    LOGGER.debug("fetching existing Directus games, page %d", page);
+    logger.debug("fetching existing Directus games, page %d", page);
 
     const response = await fetchExistingGamesPage(page);
 
     if (response.length === 0) {
-      LOGGER.debug("no more existing Directus games found, stopping at page %d", page);
+      logger.debug("no more existing Directus games found, stopping at page %d", page);
 
       break;
     }
@@ -157,7 +148,7 @@ async function fetchExistingGames(): Promise<Record<number, any>> {
     });
   }
 
-  LOGGER.info("fetched %d game items", Object.keys(existingGames).length);
+  logger.info("fetched %d game items", Object.keys(existingGames).length);
 
   return existingGames;
 }

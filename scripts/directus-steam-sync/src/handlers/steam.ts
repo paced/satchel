@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import LOGGER from "./logger";
 
 const STEAM_API_ENDPOINT = "https://api.steampowered.com";
 const STEAM_STORE_API_ENDPOINT = "https://store.steampowered.com/api";
@@ -90,7 +91,7 @@ export async function processGames(
 
   const steamApiUrlString = steamApiUrl.href;
 
-  console.log("[info] fetching Steam data from URL", steamApiUrlString);
+  LOGGER.debug("fetching Steam data from URL: %s", steamApiUrlString);
 
   const result = await fetch(steamApiUrlString);
 
@@ -99,7 +100,7 @@ export async function processGames(
   const gameCount = data.response.game_count;
   const games = data.response.games;
 
-  console.log(`[info] user owns ${gameCount} games, processing...`);
+  LOGGER.info(`user owns ${gameCount} games, processing...`);
 
   const basicGameInfos: BasicGameInfo[] = [];
   games.forEach((game: any) => {
@@ -126,21 +127,19 @@ export async function processGames(
     }
 
     if (iterationIndexFromOne % modulo === 0 || iterationIndexFromOne === basicGameInfos.length) {
-      console.log(
-        `[info] processing game ${iterationIndexFromOne} of ${basicGameInfos.length} (app ID: ${gameInfo.appId})`,
-      );
+      LOGGER.info(`processing game ${iterationIndexFromOne} of ${basicGameInfos.length} (app ID: ${gameInfo.appId})`);
     }
 
     const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === gameInfo.appId);
     if (existingGameIndex !== -1) {
-      console.debug(`[debug] duplicate app ID ${gameInfo.appId} found, skipping duplicate`);
+      LOGGER.debug(`duplicate app ID ${gameInfo.appId} found, skipping duplicate`);
 
       continue;
     }
 
     const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === gameInfo.appId);
     if (cachedGameInfo) {
-      console.debug(`[debug] using cached data for app ID ${gameInfo.appId}`);
+      LOGGER.debug(`using cached data for app ID ${gameInfo.appId}`);
 
       gameInfos.push(cachedGameInfo);
 
@@ -151,7 +150,7 @@ export async function processGames(
 
     const appData = await lookupApp(gameInfo.appId);
     if (!appData || !appData[gameInfo.appId] || !appData[gameInfo.appId].success) {
-      console.warn(`[warn] failure for app ID ${gameInfo.appId}, it may have been removed from Steam! Skipping...`);
+      LOGGER.warn(`failure for app ID ${gameInfo.appId}, it may have been removed from Steam! Skipping...`);
 
       failedGameInfos.push(gameInfo);
 
@@ -165,9 +164,13 @@ export async function processGames(
         appId: gameInfo.appId,
         name: data.name,
 
+        // For Directus, only the short description is actually used.
+
         detailed_description: data.detailed_description,
         about_the_game: data.about_the_game,
         short_description: data.short_description,
+
+        // For Directus, only the header image of all of these is actually used.
 
         header_image: data.header_image,
         capsule_image: data.capsule_image,
@@ -182,25 +185,28 @@ export async function processGames(
 
         metacritic_score: data.metacritic ? data.metacritic.score : null,
 
+        // Genre is considered a category in Directus.
+
         categories: data.categories ? data.categories.map((category: any) => category.description) : [],
         genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
       };
 
       gameInfos.push(processedGameInfo);
     } catch (err) {
-      console.error(`[error] failed to process app ID ${gameInfo.appId}:`, err);
+      LOGGER.error(`failed to process app ID %d: %s`, gameInfo.appId, err);
     }
+  }
+
+  if (failedGameInfos.length > 0) {
+    LOGGER.warn(
+      `failed to process %d games: %s`,
+      failedGameInfos.length,
+      failedGameInfos.map((basicGameInfo) => basicGameInfo.appId),
+    );
   }
 
   if (options.useCache) {
     await updateCache(gameInfos);
-  }
-
-  if (failedGameInfos.length > 0) {
-    console.error(
-      `[info] failed to process ${failedGameInfos.length} games:`,
-      failedGameInfos.map((basicGameInfo) => basicGameInfo.appId),
-    );
   }
 
   return gameInfos;
@@ -213,9 +219,9 @@ async function loadCache(): Promise<ProcessedGameInfo[]> {
     const cacheData = await readFile(GAME_INFO_CACHE_PATH, "utf-8");
     cachedGameInfos = JSON.parse(cacheData);
 
-    console.log(`[info] loaded ${cachedGameInfos.length} games from cache`);
+    LOGGER.info(`loaded ${cachedGameInfos.length} games from cache`);
   } catch (err) {
-    console.log("[info] no cache file found, will create new cache");
+    LOGGER.info("no cache file found, will create new cache");
 
     cachedGameInfos = [];
   }
@@ -230,9 +236,9 @@ async function updateCache(gameInfos: ProcessedGameInfo[]): Promise<void> {
     await mkdir("out", { recursive: true });
     await writeFile(GAME_INFO_CACHE_PATH, JSON.stringify(sortedGameInfos, null, 2), "utf-8");
 
-    console.log(`[info] wrote ${gameInfos.length} games to cache`);
+    LOGGER.info(`wrote ${gameInfos.length} games to cache`);
   } catch (err) {
-    console.error("[error] failed to write cache file:", err);
+    LOGGER.error("failed to write cache file: %s", err);
   }
 }
 
@@ -243,18 +249,18 @@ async function lookupApp(appId: number) {
 
   const steamStoreApiUrlString = steamStoreApiUrl.href;
 
-  console.debug("[debug] fetching Steam Store data from URL", steamStoreApiUrlString);
+  LOGGER.debug("fetching Steam Store data from URL: %s", steamStoreApiUrlString);
 
   try {
     const result = await fetch(steamStoreApiUrlString);
     if (result.status === 429) {
-      console.error("[error] rate limited by Steam Store API");
+      LOGGER.error("rate limited by Steam Store API");
 
       return;
     }
 
     return await result.json();
   } catch (_err) {
-    console.error(`[error] failed to fetch app ID ${appId} and not rate limited`);
+    LOGGER.error(`failed to fetch app ID %d and not rate limited`, appId);
   }
 }

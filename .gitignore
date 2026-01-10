@@ -43,5 +43,7 @@ next-env.d.ts
 .moon/docker
 
 # project
+!scripts/directus-steam-sync/out/
+scripts/directus-steam-sync/out/*
 !scripts/directus-steam-sync/out/steam-game-info-cache.json
 !scripts/directus-steam-sync/out/steam-known-deleted-games-cache.json

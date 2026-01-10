@@ -17,6 +17,9 @@ const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
  *
  * For a game library with 1000 games, this results in this first step taking upwards of 1.5 hours if there are no
  * cached entries.
+ *
+ * At your own risk, you can reduce this delay and accept rate limits, running the script again with caching enabled to
+ * continue with unprocessed games. However, be aware that excessive requests may lead to longer bans.
  */
 const STEAM_STORE_API_SLEEP_MS = 5000;
 

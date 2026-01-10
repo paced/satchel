@@ -111,6 +111,7 @@ export async function processGames(
 
   const cachedGameInfos: ProcessedGameInfo[] = options.useCache ? await loadCache() : [];
   const gameInfos: ProcessedGameInfo[] = [];
+  const failedGameInfos: BasicGameInfo[] = [];
 
   for (const gameInfo of basicGameInfos) {
     const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === gameInfo.appId);
@@ -127,7 +128,11 @@ export async function processGames(
     const appData = await lookupApp(gameInfo.appId);
 
     if (!appData || !appData[gameInfo.appId] || !appData[gameInfo.appId].success) {
-      console.warn(`[warn] failure for app ID ${gameInfo.appId}, skipping`);
+      console.warn(
+        `[warn] failure for app ID ${gameInfo.appId}, it may have been removed from Steam! Skipping...`,
+      );
+
+      failedGameInfos.push(gameInfo);
 
       continue;
     }
@@ -168,6 +173,13 @@ export async function processGames(
 
   if (options.useCache) {
     await updateCache(gameInfos);
+  }
+
+  if (failedGameInfos.length > 0) {
+    console.error(
+      `[info] failed to process ${failedGameInfos.length} games:`,
+      failedGameInfos.map((basicGameInfo) => basicGameInfo.appId),
+    );
   }
 
   return gameInfos;

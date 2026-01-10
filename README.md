@@ -27,8 +27,14 @@ similar game libraries. If you end up using this, please consider opening PRs wi
 
 ## Swiper
 
-This app allows you to go through games in your Directus game library that have not yet been processed to be quickly
-categorised with a set of easy-to-use buttons.
+- A sub-app that allows a simple button interface for adding statuses to items in Directus.
+  - Slider: Replayability score (0-100).
+  - Dropdown: Tier (S, A, B, C, D, E, F, unfinished) - only finished games allowed on here.
+  - Buttons: "Completed, 100%", "Completed, Any%", "Dropped, 50%+ done", "Dropped, partially done", "Dropped, glanced",
+    "Dropped, judged cover".
+
+This allows setting nearly all fields in one convenient app. The only thing it doesn't let you do is set reviews, which
+should be done directly in Directus to games that already have a tier.
 
 ### Usage
 

@@ -9,4 +9,5 @@ Scripts are all written in TypeScript and use Moonrepo for monorepo management.
 Given the steam library provided in `.env`, the script with sync the Directus collection `Game` with the games in the
 given account ID's library. This will add any missing games, as well as add any additional metadata to old entries.
 
-This uses the Steam Web API through `IPlayerService/GetOwnedGames/v0001/` to get the list of owned games.
+The game info cache file is not `.gitignore`d as the Steam Store API output may be very useful for other users who have
+similar game libraries. If you end up using this, please consider opening PRs with your own updates to the data!

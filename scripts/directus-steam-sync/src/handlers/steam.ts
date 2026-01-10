@@ -113,7 +113,7 @@ export async function processGames(
   const cachedGameInfos: ProcessedGameInfo[] = options.useCache ? await loadCache() : [];
   const gameInfos: ProcessedGameInfo[] = [];
 
-  for (const gameInfo of basicGameInfos.sort((a, b) => b.playtime - a.playtime)) {
+  for (const gameInfo of basicGameInfos) {
     const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === gameInfo.appId);
     if (cachedGameInfo) {
       console.debug(`[debug] using cached data for app ID ${gameInfo.appId}`);
@@ -189,8 +189,10 @@ async function loadCache(): Promise<ProcessedGameInfo[]> {
 
 async function updateCache(gameInfos: ProcessedGameInfo[]): Promise<void> {
   try {
+    const sortedGameInfos = gameInfos.sort((a, b) => a.appId - b.appId);
+
     await mkdir("out", { recursive: true });
-    await writeFile(GAME_INFO_CACHE_PATH, JSON.stringify(gameInfos, null, 2), "utf-8");
+    await writeFile(GAME_INFO_CACHE_PATH, JSON.stringify(sortedGameInfos, null, 2), "utf-8");
 
     console.log(`[info] wrote ${gameInfos.length} games to cache`);
   } catch (err) {

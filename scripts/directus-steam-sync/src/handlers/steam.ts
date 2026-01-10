@@ -6,7 +6,19 @@ const STEAM_STORE_API_ENDPOINT = "https://store.steampowered.com/api";
 const STEAM_API_GET_OWNED_GAMES_METHOD = "IPlayerService/GetOwnedGames/v0001";
 const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
 
-const STEAM_STORE_API_SLEEP_MS = 200;
+/**
+ * Delay between Steam Store API requests to avoid rate limiting.
+ *
+ * ## Notes
+ *
+ * Steam does not publish official rate limits for their Store API, but based on experience and community reports, they
+ * are aggressive in rate limiting requests. A delay of 5 seconds between requests is a conservative approach to avoid
+ * hitting rate limits, as temporary bans can last from several minutes to hours.
+ *
+ * For a game library with 1000 games, this results in this first step taking upwards of 1.5 hours if there are no
+ * cached entries.
+ */
+const STEAM_STORE_API_SLEEP_MS = 5000;
 
 const GAME_INFO_CACHE_PATH = "out/game-info-cache.json";
 
@@ -104,49 +116,48 @@ export async function processGames(
       console.debug(`[debug] using cached data for app ID ${gameInfo.appId}`);
 
       gameInfos.push(cachedGameInfo);
+
       continue;
     }
 
     await new Promise((resolve) => setTimeout(resolve, STEAM_STORE_API_SLEEP_MS));
 
-    try {
-      const appData = await lookupApp(gameInfo.appId);
+    const appData = await lookupApp(gameInfo.appId);
 
-      if (!appData[gameInfo.appId] && appData[gameInfo.appId].success) {
-        console.warn(`[warn] failure for app ID ${gameInfo.appId}, skipping`);
-      }
+    if (!appData || (!appData[gameInfo.appId] && appData[gameInfo.appId].success)) {
+      console.warn(`[warn] failure for app ID ${gameInfo.appId}, skipping`);
 
-      const data = appData[gameInfo.appId].data;
-
-      const processedGameInfo: ProcessedGameInfo = {
-        appId: gameInfo.appId,
-        name: data.name,
-
-        detailed_description: data.detailed_description,
-        about_the_game: data.about_the_game,
-        short_description: data.short_description,
-
-        header_image: data.header_image,
-        capsule_image: data.capsule_image,
-        capsule_imagev5: data.capsule_imagev5,
-        movies: data.movies || [],
-        screenshots: data.screenshots || [],
-        background: data.background,
-        background_raw: data.background_raw,
-
-        developers: data.developers,
-        publishers: data.publishers,
-
-        metacritic_score: data.metacritic ? data.metacritic.score : null,
-
-        categories: data.categories ? data.categories.map((category: any) => category.description) : [],
-        genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
-      };
-
-      gameInfos.push(processedGameInfo);
-    } catch (err) {
-      console.error(`[error] error looking up app ID ${gameInfo.appId}:`, err);
+      continue;
     }
+
+    const data = appData[gameInfo.appId].data;
+
+    const processedGameInfo: ProcessedGameInfo = {
+      appId: gameInfo.appId,
+      name: data.name,
+
+      detailed_description: data.detailed_description,
+      about_the_game: data.about_the_game,
+      short_description: data.short_description,
+
+      header_image: data.header_image,
+      capsule_image: data.capsule_image,
+      capsule_imagev5: data.capsule_imagev5,
+      movies: data.movies || [],
+      screenshots: data.screenshots || [],
+      background: data.background,
+      background_raw: data.background_raw,
+
+      developers: data.developers,
+      publishers: data.publishers,
+
+      metacritic_score: data.metacritic ? data.metacritic.score : null,
+
+      categories: data.categories ? data.categories.map((category: any) => category.description) : [],
+      genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
+    };
+
+    gameInfos.push(processedGameInfo);
   }
 
   if (options.useCache) {
@@ -193,7 +204,16 @@ async function lookupApp(appId: number) {
 
   console.debug("[debug] fetching Steam Store data from URL", steamStoreApiUrlString);
 
-  const result = await fetch(steamStoreApiUrlString);
+  try {
+    const result = await fetch(steamStoreApiUrlString);
+    if (result.status === 429) {
+      console.error("[error] rate limited by Steam Store API");
 
-  return await result.json();
+      return;
+    }
+
+    return await result.json();
+  } catch (_err) {
+    console.error(`[error] failed to fetch app ID ${appId} and not rate limited`);
+  }
 }

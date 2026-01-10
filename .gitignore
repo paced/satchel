@@ -38,31 +38,9 @@ next-env.d.ts
 .vs/
 .idea/
 
-# Godot 4+
-**/.godot/
-
-# Cloudflare
-**/functions/\[\[path\]\].js
-**/functions/\[\[path\]\].js.map
-**/functions/metafile.*
-**/version.txt
-**/public/build
-**/.dev.vars
-**/.wrangler/
-wrangler.toml
-wrangler.prod.toml
-**/env.d.ts
-
 # moon
 .moon/cache
 .moon/docker
-
-# rust
-debug/
-target/
-Cargo.lock
-**/*.rs.bk
-*.pdb
 
 # project
 !scripts/directus-steam-sync/out/game-info-cache.json

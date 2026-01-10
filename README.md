@@ -15,4 +15,5 @@ similar game libraries. If you end up using this, please consider opening PRs wi
 #### Upcoming Features
 
 - Ability to add games not owned by the user to the Directus collection via this script.
+- Keeping a cached list of games that are known to have been removed from the Steam Store.
 - (If possible) Ability to automatically detect Steam Family games.

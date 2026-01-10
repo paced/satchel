@@ -47,6 +47,11 @@ const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
  */
 const STEAM_STORE_API_SLEEP_MS = 3000;
 
+/**
+ * Threshold for what is considered a "long" time in milliseconds for warning the user.
+ */
+const LONG_TIME_IN_MS = 30 * 1000;
+
 const DEFAULT_PROCESS_GAME_OPTIONS: ProcessGamesOptions = {
   useCache: true,
   skip: false,
@@ -133,10 +138,22 @@ export async function processSteamGames(
   LOGGER.info("---------");
 
   const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache ? await loadGameInfoCache() : [];
-  const knownDeletedAppIds: number[] = await loadKnownDeletedGamesCache();
+  const knownDeletedAppIds: number[] = finalOptions.useCache ? await loadKnownDeletedGamesCache() : [];
 
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
+
+  const totalGamesExpectedToProcess = ownedSteamAppIds.length - cachedGameInfos.length - knownDeletedAppIds.length;
+  if (!finalOptions.skip && totalGamesExpectedToProcess * STEAM_STORE_API_SLEEP_MS > LONG_TIME_IN_MS) {
+    LOGGER.warn(
+      "processing %d games with a delay of %d ms each may take a long time (over %d seconds)...",
+      totalGamesExpectedToProcess,
+      STEAM_STORE_API_SLEEP_MS,
+      Math.round((totalGamesExpectedToProcess * STEAM_STORE_API_SLEEP_MS) / 1000),
+    );
+  }
+
+  LOGGER.info("beginning processing of %d owned Steam games...", ownedSteamAppIds.length);
 
   for (const appId of ownedSteamAppIds) {
     if (!finalOptions.skip) {

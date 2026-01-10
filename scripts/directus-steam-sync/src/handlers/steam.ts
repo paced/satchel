@@ -12,16 +12,15 @@ const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
  * ## Notes
  *
  * Steam does not publish official rate limits for their Store API, but based on experience and community reports, they
- * are aggressive in rate limiting requests. A delay of 5 seconds between requests is a conservative approach to avoid
+ * are aggressive in rate limiting requests. A delay of 3 seconds between requests is a conservative approach to avoid
  * hitting rate limits, as temporary bans can last from several minutes to hours.
  *
- * For a game library with 1000 games, this results in this first step taking upwards of 1.5 hours if there are no
- * cached entries.
+ * For a game library with 1000 games, this results in this first step taking a very long time without caching.
  *
  * At your own risk, you can reduce this delay and accept rate limits, running the script again with caching enabled to
  * continue with unprocessed games. However, be aware that excessive requests may lead to longer bans.
  */
-const STEAM_STORE_API_SLEEP_MS = 5000;
+const STEAM_STORE_API_SLEEP_MS = 3000;
 
 const GAME_INFO_CACHE_PATH = "out/game-info-cache.json";
 
@@ -127,7 +126,7 @@ export async function processGames(
 
     const appData = await lookupApp(gameInfo.appId);
 
-    if (!appData || (!appData[gameInfo.appId] && appData[gameInfo.appId].success)) {
+    if (!appData || !appData[gameInfo.appId] || !appData[gameInfo.appId].success) {
       console.warn(`[warn] failure for app ID ${gameInfo.appId}, skipping`);
 
       continue;
@@ -135,32 +134,36 @@ export async function processGames(
 
     const data = appData[gameInfo.appId].data;
 
-    const processedGameInfo: ProcessedGameInfo = {
-      appId: gameInfo.appId,
-      name: data.name,
+    try {
+      const processedGameInfo: ProcessedGameInfo = {
+        appId: gameInfo.appId,
+        name: data.name,
 
-      detailed_description: data.detailed_description,
-      about_the_game: data.about_the_game,
-      short_description: data.short_description,
+        detailed_description: data.detailed_description,
+        about_the_game: data.about_the_game,
+        short_description: data.short_description,
 
-      header_image: data.header_image,
-      capsule_image: data.capsule_image,
-      capsule_imagev5: data.capsule_imagev5,
-      movies: data.movies || [],
-      screenshots: data.screenshots || [],
-      background: data.background,
-      background_raw: data.background_raw,
+        header_image: data.header_image,
+        capsule_image: data.capsule_image,
+        capsule_imagev5: data.capsule_imagev5,
+        movies: data.movies || [],
+        screenshots: data.screenshots || [],
+        background: data.background,
+        background_raw: data.background_raw,
 
-      developers: data.developers,
-      publishers: data.publishers,
+        developers: data.developers,
+        publishers: data.publishers,
 
-      metacritic_score: data.metacritic ? data.metacritic.score : null,
+        metacritic_score: data.metacritic ? data.metacritic.score : null,
 
-      categories: data.categories ? data.categories.map((category: any) => category.description) : [],
-      genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
-    };
+        categories: data.categories ? data.categories.map((category: any) => category.description) : [],
+        genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
+      };
 
-    gameInfos.push(processedGameInfo);
+      gameInfos.push(processedGameInfo);
+    } catch (err) {
+      console.error(`[error] failed to process app ID ${gameInfo.appId}:`, err);
+    }
   }
 
   if (options.useCache) {
@@ -190,6 +193,8 @@ async function loadCache(): Promise<ProcessedGameInfo[]> {
 async function updateCache(gameInfos: ProcessedGameInfo[]): Promise<void> {
   try {
     const sortedGameInfos = gameInfos.sort((a, b) => a.appId - b.appId);
+
+    // FIXME: This may end up with dupes. Deduplicate based on app ID and warn if the JSON data of the entries differ.
 
     await mkdir("out", { recursive: true });
     await writeFile(GAME_INFO_CACHE_PATH, JSON.stringify(sortedGameInfos, null, 2), "utf-8");

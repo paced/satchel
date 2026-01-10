@@ -8,7 +8,7 @@ export function mapSteamAppToProcessedGameInfo(
 ): ProcessedSteamGameInfo | undefined {
   try {
     return {
-      appId: data.appId,
+      appId: data.steam_appid,
       query: query,
 
       name: data.name,

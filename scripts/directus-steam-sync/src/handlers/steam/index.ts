@@ -23,6 +23,8 @@ if (!TARGET_STEAM_ID) {
   process.exit(1);
 }
 
+const LANGUAGE = parsed?.STEAM_API_LANGUAGE || "english";
+
 const STEAM_API_ENDPOINT = "https://api.steampowered.com";
 const STEAM_STORE_API_ENDPOINT = "https://store.steampowered.com/api";
 
@@ -268,6 +270,7 @@ async function lookupSteamGame(appId: number) {
   const steamStoreApiUrl = new URL(`${STEAM_STORE_API_ENDPOINT}/${STEAM_STORE_API_APP_DETAILS_METHOD}/`);
 
   steamStoreApiUrl.searchParams.append("appids", appId.toString());
+  steamStoreApiUrl.searchParams.append("l", LANGUAGE);
 
   const steamStoreApiUrlString = steamStoreApiUrl.href;
 

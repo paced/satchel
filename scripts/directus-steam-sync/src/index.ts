@@ -37,7 +37,8 @@ async function main() {
   logger.info("verbose = %s", args.verbose || false);
   logger.info("no_cache = %s", args.no_cache || false);
   logger.info("skip_steam = %s", args.skip_steam_api_calls || false);
-  logger.info("steam_ids = %s (count = %d)", args.steam_ids || "none", args.steam_ids ? args.steam_ids.length : 0);
+
+  logger.info("steam_ids (#) = %d", args.steam_ids ? args.steam_ids.length : 0);
 
   if (args.steam_ids.length > 0) {
     const steamGames = await processSteamGames(

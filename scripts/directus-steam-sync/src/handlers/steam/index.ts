@@ -168,8 +168,8 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   logger.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
   logger.info("---------");
 
-  const cachedGameInfos: ProcessedSteamGameInfo[] = options.useCache ? await loadGameInfoCache() : [];
-  const knownDeletedAppIds: number[] = options.useCache ? await loadKnownDeletedGamesCache() : [];
+  const cachedGameInfos: ProcessedSteamGameInfo[] = options.useCache ? await loadGameInfoCache(logger) : [];
+  const knownDeletedAppIds: number[] = options.useCache ? await loadKnownDeletedGamesCache(logger) : [];
 
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
@@ -247,8 +247,8 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   }
 
   if (options.useCache) {
-    await updateSteamGameInfoCache(cachedGameInfos, gameInfos);
-    await updateKnownDeletedGamesCache(knownDeletedAppIds);
+    await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
+    await updateKnownDeletedGamesCache(knownDeletedAppIds, logger);
   }
 
   return gameInfos;
@@ -260,7 +260,7 @@ async function fetchOwnedGames(targetSteamId: string, force = false, logger: Log
   logger.info("---------");
 
   if (!force) {
-    return await loadOwnedGamesCache(targetSteamId);
+    return await loadOwnedGamesCache(targetSteamId, logger);
   }
 
   logger.info("(re)fetching library games for SteamID %s...", targetSteamId);
@@ -289,7 +289,7 @@ async function fetchOwnedGames(targetSteamId: string, force = false, logger: Log
     appIds.push(game.appid);
   });
 
-  await updateOwnedGamesCache(targetSteamId, appIds);
+  await updateOwnedGamesCache(targetSteamId, appIds, logger);
 
   return appIds;
 }

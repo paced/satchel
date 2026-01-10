@@ -11,6 +11,9 @@ importers:
       '@directus/sdk':
         specifier: ^20.3.0
         version: 20.3.0
+      argparse:
+        specifier: ^2.0.1
+        version: 2.0.1
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3

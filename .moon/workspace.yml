@@ -1,5 +1,6 @@
 $schema: 'https://moonrepo.dev/schemas/workspace.json'
 projects:
+  - apps/swiper
   - scripts/directus-steam-sync
 vcs:
   manager: 'git'

@@ -1,0 +1,91 @@
+name: Satchel CI/CD
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to build"
+        required: true
+        default: "main"
+
+jobs:
+  check-swiper:
+    runs-on: ubuntu-latest
+    outputs:
+      will-build: ${{ steps.filter.outputs.sources }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            sources:
+              - '.github/workflows/swiper.yml'
+              - 'apps/swiper/**'
+      - name: echo if running
+        if: steps.filter.outputs.sources == 'true'
+        run: echo "going to build"
+      - name: echo if not running
+        if: steps.filter.outputs.sources != 'true'
+        run: echo "not going to build"
+
+  build-ui:
+    runs-on: ubuntu-latest
+    needs: check-swiper
+    if: needs.check-swiper.outputs.will-build == 'true' && github.ref_type != 'tag' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://npm.pkg.github.com
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: moonrepo/setup-toolchain@v0
+      - run: moon swiper:install
+        env:
+          INKLING_PACKAGES_GITHUB_TOKEN: ${{ secrets.INKLING_PACKAGES_GITHUB_TOKEN }}
+      - name: load envars
+        run: echo "$ENV_LOCAL" > apps/swiper/.env.local
+        env:
+          ENV_LOCAL: ${{ secrets.EVENTIE_UI_ENV_LOCAL }}
+      - run: moon swiper:build
+      - run: moon swiper:format-check
+      - run: moon swiper:lint
+      - name: upload build
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v6
+        with:
+          name: swiper-build-ui
+          path: |
+            apps/swiper
+            !apps/swiper/node_modules
+
+  deploy-ui:
+    runs-on: ubuntu-latest
+    needs: build-ui
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/download-artifact@v7
+        with:
+          name: swiper-build-ui
+          path: apps/swiper
+      - uses: moonrepo/setup-toolchain@v0
+      - run: moon ui:install
+        env:
+          INKLING_PACKAGES_GITHUB_TOKEN: ${{ secrets.INKLING_PACKAGES_GITHUB_TOKEN }}
+      - uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: swiper-ui
+          directory: apps/swiper/dist
+          branch: main

@@ -1,0 +1,20 @@
+type: "application"
+language: "typescript"
+stack: "frontend"
+project:
+  name: "swiper"
+  description: "A React app to handle dealing with games one-by-one."
+  maintainers: ["github@paced.me"]
+tasks:
+  install:
+    command: "pnpm install"
+  build:
+    command: "pnpm run build"
+  dev:
+    command: "pnpm run dev"
+  format:
+    command: "pnpm run format"
+  format-check:
+    command: "pnpm run format:check"
+  lint:
+    command: "pnpm run lint"

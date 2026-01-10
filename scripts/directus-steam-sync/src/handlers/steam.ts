@@ -114,6 +114,30 @@ export async function processGames(
   const failedGameInfos: BasicGameInfo[] = [];
 
   for (const gameInfo of basicGameInfos) {
+    const iterationIndexFromOne = basicGameInfos.indexOf(gameInfo) + 1;
+
+    let modulo = 10;
+    if (basicGameInfos.length > 1000) {
+      modulo = 100;
+    } else if (basicGameInfos.length > 500) {
+      modulo = 50;
+    } else if (basicGameInfos.length > 100) {
+      modulo = 20;
+    }
+
+    if (iterationIndexFromOne % modulo === 0 || iterationIndexFromOne === basicGameInfos.length) {
+      console.log(
+        `[info] processing game ${iterationIndexFromOne} of ${basicGameInfos.length} (app ID: ${gameInfo.appId})`,
+      );
+    }
+
+    const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === gameInfo.appId);
+    if (existingGameIndex !== -1) {
+      console.debug(`[debug] duplicate app ID ${gameInfo.appId} found, skipping duplicate`);
+
+      continue;
+    }
+
     const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === gameInfo.appId);
     if (cachedGameInfo) {
       console.debug(`[debug] using cached data for app ID ${gameInfo.appId}`);
@@ -126,11 +150,8 @@ export async function processGames(
     await new Promise((resolve) => setTimeout(resolve, STEAM_STORE_API_SLEEP_MS));
 
     const appData = await lookupApp(gameInfo.appId);
-
     if (!appData || !appData[gameInfo.appId] || !appData[gameInfo.appId].success) {
-      console.warn(
-        `[warn] failure for app ID ${gameInfo.appId}, it may have been removed from Steam! Skipping...`,
-      );
+      console.warn(`[warn] failure for app ID ${gameInfo.appId}, it may have been removed from Steam! Skipping...`);
 
       failedGameInfos.push(gameInfo);
 
@@ -205,8 +226,6 @@ async function loadCache(): Promise<ProcessedGameInfo[]> {
 async function updateCache(gameInfos: ProcessedGameInfo[]): Promise<void> {
   try {
     const sortedGameInfos = gameInfos.sort((a, b) => a.appId - b.appId);
-
-    // FIXME: This may end up with dupes. Deduplicate based on app ID and warn if the JSON data of the entries differ.
 
     await mkdir("out", { recursive: true });
     await writeFile(GAME_INFO_CACHE_PATH, JSON.stringify(sortedGameInfos, null, 2), "utf-8");

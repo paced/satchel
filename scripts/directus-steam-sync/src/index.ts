@@ -14,6 +14,10 @@ if (!TARGET_STEAM_ID) {
 }
 
 async function main() {
+  if (!parsed?.DEBUG) {
+    console.debug = () => {};
+  }
+
   await processGames(STEAM_API_KEY, TARGET_STEAM_ID);
 }
 

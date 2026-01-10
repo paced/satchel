@@ -37,7 +37,11 @@ const DIRECTUS_CLIENT = createDirectus(DIRECTUS_API_ENDPOINT).with(staticToken(D
 export async function upsertSteamGame(steamGameData: ProcessedSteamGameInfo[]) {
   // App IDs do NOT match Directus item IDs. We need to always retrieve first.
 
-  await fetchExistingGames();
+  LOGGER.info("---------");
+  LOGGER.info("RETRIEVING EXISTING GAMES FROM DIRECTUS");
+  LOGGER.info("---------");
+
+  const existingGames = await fetchExistingGames();
 }
 
 function createSteamAppIdToDirectusItemIdMap(existingGames: Record<number, any>): Record<number, number> {

@@ -125,15 +125,16 @@ export async function processSteamGames(
   }
 
   const ownedSteamAppIds: number[] = await fetchOwnedGames(!finalOptions.skip);
+
+  LOGGER.info("---------");
+  LOGGER.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
+  LOGGER.info("---------");
+
   const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache ? await loadGameInfoCache() : [];
   const knownDeletedAppIds: number[] = await loadKnownDeletedGamesCache();
 
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
-
-  LOGGER.info("---------");
-  LOGGER.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
-  LOGGER.info("---------");
 
   for (const appId of ownedSteamAppIds) {
     if (!finalOptions.skip) {

@@ -146,9 +146,18 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
     await new Promise((resolve) => setTimeout(resolve, STEAM_STORE_API_SLEEP_MS));
 
     const lookupUrl = createLookupUrl(appId, options.language || DEFAULT_LANGUAGE);
-    const appData = await lookupSteamGame(lookupUrl, appId, options.language || DEFAULT_LANGUAGE, logger);
-    if (!appData || !appData[appId] || !appData[appId].success) {
-      logger.warn(`failure for app ID %d, it may have been removed from Steam!`, appId);
+    const appData = await lookupSteamGame(lookupUrl).catch((err) => {
+      logger.error("HTTP fetch failed for app ID %d: %s", appId, err);
+
+      return;
+    });
+
+    if (!appData || !appData[appId]) {
+      continue;
+    }
+
+    if (!appData[appId].success) {
+      logger.warn("fetch succeeded but success is false for app ID %d", appId);
       failedGameInfos.push(appId);
 
       if (appData[appId] && appData[appId].success === false) {

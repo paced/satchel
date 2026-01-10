@@ -54,22 +54,14 @@ export function createLookupUrl(appId: number, language: string) {
   steamStoreApiUrl.searchParams.append("appids", appId.toString());
   steamStoreApiUrl.searchParams.append("l", language);
 
-  return steamStoreApiUrl.href;
+  return steamStoreApiUrl.toString();
 }
 
-export async function lookupSteamGame(steamStoreApiUrlString: string, appId: number, language: string, logger: Logger) {
-  logger.debug("fetching Steam Store data from URL: %s", steamStoreApiUrlString);
-
-  try {
-    const result = await fetch(steamStoreApiUrlString);
-    if (result.status === 429) {
-      logger.error("rate limited by Steam Store API");
-
-      return;
-    }
-
-    return await result.json();
-  } catch (_err) {
-    logger.error(`failed to fetch app ID %d and not rate limited`, appId);
+export async function lookupSteamGame(steamStoreApiUrlString: string) {
+  const result = await fetch(steamStoreApiUrlString);
+  if (result.status === 429) {
+    throw new Error("rate limited by Steam Store API");
   }
+
+  return await result.json();
 }

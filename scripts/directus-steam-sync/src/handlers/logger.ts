@@ -1,7 +1,7 @@
 import pino from "pino";
 import { config } from "dotenv";
 
-const { parsed } = config();
+const { parsed } = config({ quiet: true });
 
 const LOGGER = pino({
   level: parsed?.DEBUG === "1" || parsed?.DEBUG.toLowerCase() === "true" ? "debug" : "info",

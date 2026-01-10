@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@directus/sdk':
+        specifier: ^20.3.0
+        version: 20.3.0
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -44,6 +47,10 @@ importers:
         version: 8.52.0(eslint@9.39.2)(typescript@5.9.3)
 
 packages:
+
+  '@directus/sdk@20.3.0':
+    resolution: {integrity: sha512-auy59B0A7Ri+4JDy0JcdFHnsHvOkl3ixWMWYciXAbm4oYIE9S4be8xEpIwA5qhlPTOprJ6JHPWo9rEvcrLwNtA==}
+    engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.27.2':
     resolution: {integrity: sha512-GZMB+a0mOMZs4MpDbj8RJp4cw+w1WV5NYD6xzgvzUJ5Ek2jerwfO2eADyI6ExDSUED+1X8aMbegahsJi+8mgpw==}
@@ -775,6 +782,8 @@ packages:
     engines: {node: '>=10'}
 
 snapshots:
+
+  '@directus/sdk@20.3.0': {}
 
   '@esbuild/aix-ppc64@0.27.2':
     optional: true

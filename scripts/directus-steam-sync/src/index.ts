@@ -1,12 +1,12 @@
 import { processSteamGames } from "./handlers/steam";
 import LOGGER from "./handlers/logger";
-import { upsertSteamGame } from "./handlers/directus";
+import { upsertAllSteamGames } from "./handlers/directus";
 
 async function main() {
   // TODO: Control this with argparse.
 
   const steamGames = await processSteamGames();
-  await upsertSteamGame(steamGames);
+  await upsertAllSteamGames(steamGames);
 }
 
 main().catch((err) => {

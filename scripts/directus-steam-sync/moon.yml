@@ -1,0 +1,20 @@
+type: "tool"
+language: "typescript"
+stack: "backend"
+project:
+  name: "directus-steam-sync"
+  description: "A TypeScript script to sync Steam data with Directus."
+  maintainers: ["github@paced.me"]
+tasks:
+  install:
+    command: "pnpm install"
+  build:
+    command: "pnpm run build"
+  dev:
+    command: "pnpm run dev"
+  format:
+    command: "pnpm run format"
+  format-check:
+    command: "pnpm run format:check"
+  lint:
+    command: "pnpm run lint"

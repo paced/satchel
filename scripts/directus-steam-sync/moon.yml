@@ -11,7 +11,7 @@ tasks:
   build:
     command: "pnpm run build"
   dev:
-    command: "pnpm start --help"
+    command: "pnpm start"
   format:
     command: "pnpm run format"
   format-check:

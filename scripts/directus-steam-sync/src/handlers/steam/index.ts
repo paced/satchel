@@ -97,6 +97,14 @@ export async function processSteamGames(
     // Overwrite only if the overwriter is the admin user.
 
     if (uniqueGamesMap[game.appId]?.basicData?.isAdmin && !game.basicData?.isAdmin) {
+      logger.debug(
+        "skipping non-admin duplicate app ID %d (%s) with %d hours played in favor of %d hours played",
+        game.appId,
+        game.name,
+        game.basicData?.hours || 0,
+        uniqueGamesMap[game.appId].basicData?.hours || 0,
+      );
+
       return;
     }
 
@@ -107,7 +115,7 @@ export async function processSteamGames(
 
   logger.info("total unique Steam games processed across all users: %d", uniqueGames.length);
 
-  return combinedGames;
+  return uniqueGames;
 }
 
 async function processSteamGamesForSingleUser(targetSteamId: string, options: ProcessGamesOptions, logger: Logger) {

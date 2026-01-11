@@ -25,12 +25,11 @@ Most of the time, this is all you need; you do not need to think about the other
 The game info cache file is not `.gitignore`d as the Steam Store API output may be very useful for other users who have
 similar game libraries. If you end up using this, please consider opening PRs with your own updates to the data!
 
-The file is getting large. It is a to-do item to reduce the size by paging it over multiple files, and to provide the
-language in the filename so other languages can also be cached.
-
-HLTB integration is broken and will be fixed in a future update by implementing the scraping directly.
-
-User-defined tags are also not yet implemented.
+- The file is getting large. It is a to-do item to reduce the size by paging it over multiple files, and to provide the
+  language in the filename so other languages can also be cached.
+- HLTB integration is broken and will be fixed in a future update by implementing the scraping directly.
+- User-defined tags are also not yet implemented.
+- "Gallery"-like viewing of screenshots is also not yet implemented.
 
 ## Swiper
 

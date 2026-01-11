@@ -16,6 +16,7 @@
   "devDependencies": {
     "@eslint/js": "9.37.0",
     "@trivago/prettier-plugin-sort-imports": "5.2.2",
+    "@types/humanize-plus": "^1.8.2",
     "@types/react": "19.2.2",
     "eslint": "9.37.0",
     "eslint-plugin-react": "7.37.5",
@@ -37,8 +38,10 @@
     "@mantine/core": "^8.3.12",
     "@mantine/hooks": "^8.3.12",
     "@vitejs/plugin-react-swc": "4.1.0",
+    "date-fns": "^4.1.0",
     "embla-carousel": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
+    "humanize-plus": "^1.8.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-icons": "5.5.0",

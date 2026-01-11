@@ -58,7 +58,7 @@ async function main() {
 
     // GENERIC:
 
-    // TODO: Fill this in with HLTB and IGDB processing.
+    // TODO: Fill this in with HLTB processing.
   }
 }
 

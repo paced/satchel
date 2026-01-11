@@ -1,4 +1,6 @@
 export interface BasicSteamGameInfo {
+  isAdmin?: boolean;
+
   appId: number;
   hours: number;
 

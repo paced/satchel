@@ -43,9 +43,10 @@ export async function fetchOwnedGames(targetSteamId: string, logger: Logger) {
   games.forEach((game: any) => {
     // This information might not be present for other users than the API key-holder.
 
-    const lastPlayedUnix = game.rtime_last_played;
+    const lastPlayedUnix = game.rtime_last_played; // 0 if unplayed, null if not APIkey holder account.
     const lastPlayedIsoDate = lastPlayedUnix ? new Date(lastPlayedUnix * 1000).toISOString() : undefined;
     basicSteamGameInfos.push({
+      isAdmin: lastPlayedUnix !== undefined && lastPlayedUnix !== null,
       appId: game.appid,
       hours: Math.round((game.playtime_forever || 0) / 60),
       lastPlayed: lastPlayedIsoDate,

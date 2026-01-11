@@ -94,6 +94,12 @@ export async function processSteamGames(
 
   const uniqueGamesMap: Record<number, ProcessedSteamGameInfo> = {};
   combinedGames.forEach((game) => {
+    // Overwrite only if the overwriter is the admin user.
+
+    if (uniqueGamesMap[game.appId]?.basicData?.isAdmin && !game.basicData?.isAdmin) {
+      return;
+    }
+
     uniqueGamesMap[game.appId] = game;
   });
 

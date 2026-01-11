@@ -36,6 +36,11 @@ const DIRECTUS_GAME_HLTB_HOURS_COMPLETIONIST_KEY = "HLTB_Hours_Completionist";
 const DIRECTUS_GAME_HLTB_NAME_KEY = "HLTB_Name";
 const DIRECTUS_GAME_HLTB_URL_KEY = "HLTB_URL";
 const DIRECTUS_GAME_RELEASE_DATE_KEY = "Release_Date";
+const DIRECTUS_GAME_STEAM_SPY_AVERAGE_FOREVER_KEY = "SteamSpy_Average_Forever";
+const DIRECTUS_GAME_STEAM_SPY_AVERAGE_2_WEEKS_KEY = "SteamSpy_Average_2_Weeks";
+const DIRECTUS_GAME_STEAM_SPY_MEDIAN_FOREVER_KEY = "SteamSpy_Median_Forever";
+const DIRECTUS_GAME_STEAM_SPY_MEDIAN_2_WEEKS_KEY = "SteamSpy_Median_2_Weeks";
+const DIRECTUS_GAME_STEAM_SPY_TAGS_KEY = "SteamSpy_Tags";
 
 /**
  * The total number of supported pages we'll attempt to fetch.
@@ -110,6 +115,11 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       [DIRECTUS_GAME_RELEASE_DATE_KEY]: gameData.release_date_timestamp
         ? new Date(gameData.release_date_timestamp).toISOString()
         : null,
+      [DIRECTUS_GAME_STEAM_SPY_AVERAGE_FOREVER_KEY]: gameData.spy_average_forever || 0,
+      [DIRECTUS_GAME_STEAM_SPY_AVERAGE_2_WEEKS_KEY]: gameData.spy_average_2weeks || 0,
+      [DIRECTUS_GAME_STEAM_SPY_MEDIAN_FOREVER_KEY]: gameData.spy_median_forever || 0,
+      [DIRECTUS_GAME_STEAM_SPY_MEDIAN_2_WEEKS_KEY]: gameData.spy_median_2weeks || 0,
+      [DIRECTUS_GAME_STEAM_SPY_TAGS_KEY]: gameData.spy_tags,
     };
 
     if (directusItemId) {

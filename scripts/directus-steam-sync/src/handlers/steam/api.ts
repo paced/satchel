@@ -9,6 +9,7 @@ const STEAM_API_KEY = parsed?.STEAM_API_KEY || "";
 
 const STEAM_API_ENDPOINT = "https://api.steampowered.com";
 const STEAM_STORE_API_ENDPOINT = "https://store.steampowered.com/api";
+const STEAM_REVIEWS_API_ENDPOINT = "https://store.steampowered.com/appreviews";
 
 const STEAM_API_GET_OWNED_GAMES_METHOD = "IPlayerService/GetOwnedGames/v0001";
 const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
@@ -59,7 +60,7 @@ export async function fetchOwnedGames(targetSteamId: string, logger: Logger) {
   return basicSteamGameInfos;
 }
 
-export function createLookupUrl(appId: number, language: string) {
+export function createSteamGameLookupUrl(appId: number, language: string) {
   const steamStoreApiUrl = new URL(`${STEAM_STORE_API_ENDPOINT}/${STEAM_STORE_API_APP_DETAILS_METHOD}/`);
 
   steamStoreApiUrl.searchParams.append("appids", appId.toString());
@@ -75,4 +76,25 @@ export async function lookupSteamGame(steamStoreApiUrlString: string) {
   }
 
   return await result.json();
+}
+
+export async function lookupSteamReview(appId: number, language: string) {
+  const steamReviewApiUrlString = createReviewLookupUrl(appId, language);
+  const result = await fetch(steamReviewApiUrlString);
+  if (result.status === 429) {
+    throw new Error("rate limited by Steam Reviews API");
+  }
+
+  return await result.json();
+}
+
+function createReviewLookupUrl(appId: number, language: string) {
+  const steamReviewsApiUrl = new URL(`${STEAM_REVIEWS_API_ENDPOINT}/${appId}`);
+
+  steamReviewsApiUrl.searchParams.append("json", "1");
+  steamReviewsApiUrl.searchParams.append("language", "all");
+  steamReviewsApiUrl.searchParams.append("num_per_page", "0");
+  steamReviewsApiUrl.searchParams.append("l", language);
+
+  return steamReviewsApiUrl.toString();
 }

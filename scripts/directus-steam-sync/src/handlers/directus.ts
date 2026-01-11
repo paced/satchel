@@ -24,8 +24,18 @@ const DIRECTUS_GAME_SCREENSHOTS_KEY = "Screenshots";
 const DIRECTUS_GAME_DESCRIPTION_KEY = "Description";
 const DIRECTUS_GAME_TAGS_KEY = "Tags";
 const DIRECTUS_GAME_METACRITIC_SCORE_KEY = "Metacritic_Score";
+const DIRECTUS_GAME_REVIEW_CATEGORY_KEY = "Review_Category";
+const DIRECTUS_GAME_STEAM_TOTAL_REVIEWS_KEY = "Steam_Total_Reviews";
+const DIRECTUS_GAME_STEAM_POSITIVE_REVIEWS_KEY = "Steam_Positive_Reviews";
+const DIRECTUS_GAME_STEAM_NEGATIVE_REVIEWS_KEY = "Steam_Negative_Reviews";
 const DIRECTUS_GAME_LAST_PLAYED_KEY = "Last_Played";
 const DIRECTUS_GAME_HOURS_KEY = "Hours";
+const DIRECTUS_GAME_HLTB_HOURS_KEY = "HLTB_Hours";
+const DIRECTUS_GAME_HLTB_HOURS_EXTRA_KEY = "HLTB_Hours_Extra";
+const DIRECTUS_GAME_HLTB_HOURS_COMPLETIONIST_KEY = "HLTB_Hours_Completionist";
+const DIRECTUS_GAME_HLTB_NAME_KEY = "HLTB_Name";
+const DIRECTUS_GAME_HLTB_URL_KEY = "HLTB_URL";
+const DIRECTUS_GAME_RELEASE_DATE_KEY = "Release_Date";
 
 /**
  * The total number of supported pages we'll attempt to fetch.
@@ -86,8 +96,20 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       [DIRECTUS_GAME_TAGS_KEY]: [...gameData.genres, ...gameData.categories],
       [DIRECTUS_GAME_STEAM_ID_KEY]: gameData.appId,
       [DIRECTUS_GAME_METACRITIC_SCORE_KEY]: gameData.metacritic_score,
+      [DIRECTUS_GAME_REVIEW_CATEGORY_KEY]: gameData.review_category || null,
+      [DIRECTUS_GAME_STEAM_TOTAL_REVIEWS_KEY]: gameData.total_reviews || 0,
+      [DIRECTUS_GAME_STEAM_POSITIVE_REVIEWS_KEY]: gameData.total_positive_reviews || 0,
+      [DIRECTUS_GAME_STEAM_NEGATIVE_REVIEWS_KEY]: gameData.total_negative_reviews || 0,
       [DIRECTUS_GAME_LAST_PLAYED_KEY]: gameData.basicData?.isAdmin ? gameData.basicData?.lastPlayed || null : null,
       [DIRECTUS_GAME_HOURS_KEY]: gameData.basicData?.isAdmin ? gameData.basicData?.hours || 0 : 0,
+      [DIRECTUS_GAME_HLTB_HOURS_KEY]: gameData.hltb_hours || null,
+      [DIRECTUS_GAME_HLTB_HOURS_EXTRA_KEY]: gameData.hltb_hours_extra || null,
+      [DIRECTUS_GAME_HLTB_HOURS_COMPLETIONIST_KEY]: gameData.hltb_hours_completionist || null,
+      [DIRECTUS_GAME_HLTB_NAME_KEY]: gameData.hltb_name || null,
+      [DIRECTUS_GAME_HLTB_URL_KEY]: gameData.hltb_url || null,
+      [DIRECTUS_GAME_RELEASE_DATE_KEY]: gameData.release_date_timestamp
+        ? new Date(gameData.release_date_timestamp).toISOString()
+        : null,
     };
 
     if (directusItemId) {

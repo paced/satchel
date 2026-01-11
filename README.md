@@ -25,6 +25,9 @@ Most of the time, this is all you need; you do not need to think about the other
 The game info cache file is not `.gitignore`d as the Steam Store API output may be very useful for other users who have
 similar game libraries. If you end up using this, please consider opening PRs with your own updates to the data!
 
+The file is getting large. It is a to-do item to reduce the size by paging it over multiple files, and to provide the
+language in the filename so other languages can also be cached.
+
 ## Swiper
 
 - A sub-app that allows a simple button interface for adding statuses to items in Directus.

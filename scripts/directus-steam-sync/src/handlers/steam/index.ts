@@ -5,10 +5,12 @@ import {
   updateSteamGameInfoCache,
 } from "./caches";
 import { Logger } from "pino";
-import { createLookupUrl, fetchOwnedGames, lookupSteamGame } from "./api";
+import { createSteamGameLookupUrl, fetchOwnedGames, lookupSteamGame, lookupSteamReview } from "./api";
 import { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
 import { mapSteamAppToProcessedGameInfo } from "./mappers";
 import { logProgress } from "../../utils/logger";
+import sleep from "../../utils/sleep";
+import { processHltbDataForSteamGames } from "../hltb";
 
 /**
  * Delay between Steam Store API requests to avoid rate limiting.
@@ -25,6 +27,7 @@ import { logProgress } from "../../utils/logger";
  * continue with unprocessed games. However, be aware that excessive requests may lead to longer bans.
  */
 const STEAM_STORE_API_SLEEP_MS = 3000;
+const STEAM_REVIEWS_API_SLEEP_MS = 3000;
 
 const DEFAULT_LANGUAGE = "english";
 const DEFAULT_PROCESS_GAME_OPTIONS: ProcessGamesOptions = {
@@ -32,6 +35,18 @@ const DEFAULT_PROCESS_GAME_OPTIONS: ProcessGamesOptions = {
   language: DEFAULT_LANGUAGE,
   useCache: true,
 };
+
+/**
+ * Number of days to wait before rechecking reviews for games already in the cache.
+ *
+ * ## Notes
+ *
+ * 6 months is a reasonable default, as reviews do not change frequently for most games. However, with the amount of
+ * Early Access, live-service, and frequently updated games on Steam, it cannot be increased too much, e.g., games such
+ * as Apex Legends, Cyberpunk 2077, No Man's Sky, Infinity Nikki, and many others have seen significant review changes
+ * over time.
+ */
+const DEFAULT_DAYS_TO_RECHECK_REVIEWS_IF_CACHED = 30 * 6;
 
 interface ProcessGamesOptions {
   debug?: boolean;
@@ -41,6 +56,8 @@ interface ProcessGamesOptions {
    * Whether to use the existing game info cache to avoid re-fetching data from the Steam Store API.
    */
   useCache?: boolean;
+
+  daysToRecheckReviewsIfCached?: number;
 }
 
 // TODO: Make top level function where all the logs are and other functions more pure.
@@ -160,9 +177,10 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
 
       continue;
     }
-    await new Promise((resolve) => setTimeout(resolve, STEAM_STORE_API_SLEEP_MS));
 
-    const lookupUrl = createLookupUrl(basicGameInfo.appId, options.language || DEFAULT_LANGUAGE);
+    await sleep(STEAM_STORE_API_SLEEP_MS);
+
+    const lookupUrl = createSteamGameLookupUrl(basicGameInfo.appId, options.language || DEFAULT_LANGUAGE);
     const appData = await lookupSteamGame(lookupUrl).catch((err) => {
       logger.error("HTTP fetch failed for app ID %d: %s", basicGameInfo.appId, err);
 
@@ -205,6 +223,77 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   if (options.useCache) {
     await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
     await updateKnownDeletedGamesCache(knownDeletedAppIds, logger);
+  }
+
+  await processSteamGameReviews(gameInfos, options, logger);
+  if (options.useCache) {
+    await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
+  }
+
+  await processHltbDataForSteamGames(gameInfos, options, logger);
+  if (options.useCache) {
+    await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
+  }
+
+  return gameInfos;
+}
+
+async function processSteamGameReviews(
+  gameInfos: ProcessedSteamGameInfo[],
+  options: ProcessGamesOptions,
+  logger: Logger,
+): Promise<ProcessedSteamGameInfo[]> {
+  logger.info("processing Steam reviews for %d games...", gameInfos.length);
+
+  for (const gameInfo of gameInfos) {
+    logProgress(gameInfos.indexOf(gameInfo) + 1, gameInfos.length, "review", logger);
+
+    logger.debug("processing reviews for Steam App ID %d (%s)...", gameInfo.appId, gameInfo.name);
+
+    const now = Date.now();
+    const reviewCacheAgeMs =
+      (options.daysToRecheckReviewsIfCached || DEFAULT_DAYS_TO_RECHECK_REVIEWS_IF_CACHED) * 24 * 60 * 60 * 1000;
+    if (gameInfo.total_reviews !== undefined && options.useCache && gameInfo.last_review_update_timestamp) {
+      const reviewLastCheckedAgeMs = now - gameInfo.last_review_update_timestamp;
+      if (reviewLastCheckedAgeMs < reviewCacheAgeMs) {
+        logger.debug(
+          "reviews for app ID %d checked %d days ago, within recheck period of %d days, skipping",
+          gameInfo.appId,
+          Math.floor(reviewLastCheckedAgeMs / (1000 * 60 * 60 * 24)),
+          options.daysToRecheckReviewsIfCached || DEFAULT_DAYS_TO_RECHECK_REVIEWS_IF_CACHED,
+        );
+
+        continue;
+      }
+    }
+
+    await sleep(STEAM_REVIEWS_API_SLEEP_MS);
+
+    const result = await lookupSteamReview(gameInfo.appId, options.language || DEFAULT_LANGUAGE).catch((err) => {
+      logger.error("HTTP fetch failed for reviews for app ID %d: %s", gameInfo.appId, err);
+
+      return;
+    });
+
+    if (!result || !result[gameInfo.appId]) {
+      continue;
+    }
+
+    if (result.success !== 1 || !result.success) {
+      logger.warn("fetch succeeded but success is false for reviews for app ID %d", gameInfo.appId);
+
+      continue;
+    }
+
+    const total_reviews = result.query_summary.total_reviews;
+    const total_positive = result.query_summary.total_positive;
+    const total_negative = result.query_summary.total_negative;
+    const review_score_desc = result.query_summary.review_score_desc;
+
+    gameInfo.total_reviews = total_reviews;
+    gameInfo.total_positive_reviews = total_positive;
+    gameInfo.total_negative_reviews = total_negative;
+    gameInfo.review_category = review_score_desc;
   }
 
   return gameInfos;

@@ -41,6 +41,9 @@ export function mapSteamAppToProcessedGameInfo(
 
       categories: data.categories ? data.categories.map((category: any) => category.description) : [],
       genres: data.genres ? data.genres.map((genre: any) => genre.description) : [],
+
+      release_date_string: data.release_date?.date,
+      release_date_timestamp: data.release_date?.date ? new Date(data.release_date.date).getTime() : undefined,
     };
   } catch (err) {
     logger.error(`failed to process app ID %d: %s`, data.appId, err);

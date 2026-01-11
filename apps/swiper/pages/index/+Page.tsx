@@ -17,9 +17,8 @@ import {
   Title,
 } from "@mantine/core";
 import { useLocalStorage } from "@mantine/hooks";
-import { formatDistance } from "date-fns";
-import {ChangeEvent, useCallback, useEffect, useState} from "react";
 import { compactInteger } from "humanize-plus";
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
 
 const TAGS_TO_REMOVE = [
   "custom volume controls",
@@ -46,6 +45,7 @@ const TAGS_TO_REMOVE = [
   "color alternatives",
   "camera comfort",
   "remote play on tv",
+  "steam turn notifications",
 ];
 
 export default function Home() {
@@ -168,9 +168,7 @@ export default function Home() {
   const currentGame = inMemoryGameItems[inMemoryGameItemIndex];
 
   const steamReviewsText =
-    currentGame?.Steam_Positive_Reviews && currentGame?.Steam_Negative_Reviews
-      ? currentGame.Review_Category
-      : "N/A";
+    currentGame?.Steam_Positive_Reviews && currentGame?.Steam_Negative_Reviews ? currentGame.Review_Category : "N/A";
 
   let metacriticColor = "red";
   if (currentGame?.Metacritic_Score >= 50 && currentGame?.Metacritic_Score < 70) {
@@ -200,7 +198,7 @@ export default function Home() {
 
   return (
     <Container>
-      <Text mt="md" size="xs" style={{ textAlign: "center"}}>
+      <Text mt="md" size="xs" style={{ textAlign: "center" }}>
         Game {inMemoryGameItemIndex + 1} of {inMemoryGameItems.length} in queue...
       </Text>
       <Box mt="xs">
@@ -228,11 +226,13 @@ export default function Home() {
       <Grid>
         <GridCol span={{ base: 12, md: 6 }} h="100%">
           <Box my="md" style={{ textAlign: "center" }}>
-            {([...(currentGame?.Spy_Tags || []), ...(currentGame?.Tags || [])]).filter((tag: any) => !TAGS_TO_REMOVE.includes(tag.toLowerCase())).map((tag: string) => (
-              <Badge key={`tag-${tag}`} mr="xs" mb="xs" size="xs">
-                {tag}
-              </Badge>
-            ))}
+            {[...(currentGame?.Spy_Tags || []), ...(currentGame?.Tags || [])]
+              .filter((tag: any) => !TAGS_TO_REMOVE.includes(tag.toLowerCase()))
+              .map((tag: string) => (
+                <Badge key={`tag-${tag}`} mr="xs" mb="xs" size="xs">
+                  {tag}
+                </Badge>
+              ))}
           </Box>
           <Flex direction="row" align="center" justify="center" gap="xl" my="md">
             <Anchor href={currentGame?.URL} target="_blank" rel="noopener noreferrer" size="sm">
@@ -270,11 +270,15 @@ export default function Home() {
               <Text size="xs">Metacritic</Text>
             </Flex>
             <Flex direction="column" ml="lg" align="center">
-              <Title order={6}>{currentGame?.Steam_Total_Reviews ? compactInteger(currentGame?.Steam_Total_Reviews, 1) : "N/A"}</Title>
+              <Title order={6}>
+                {currentGame?.Steam_Total_Reviews ? compactInteger(currentGame?.Steam_Total_Reviews, 1) : "N/A"}
+              </Title>
               <Text size="xs">Steam Reviews</Text>
             </Flex>
             <Flex direction="column" ml="lg" align="center">
-              <Title order={6} c={steamSentimentColor}>{steamReviewsText}</Title>
+              <Title order={6} c={steamSentimentColor}>
+                {steamReviewsText}
+              </Title>
               <Text size="xs">Steam Sentiment</Text>
             </Flex>
           </Flex>
@@ -301,14 +305,15 @@ export default function Home() {
         </GridCol>
       </Grid>
       <Box>
-        <Button mr="sm"
+        <Button
+          mr="sm"
           disabled={inMemoryGameItemIndex <= 0}
           onClick={() => {
             if (inMemoryGameItemIndex > 0) {
               setInMemoryGameItemIndex(inMemoryGameItemIndex - 1);
             }
           }}
-          >
+        >
           Previous
         </Button>
         <Button
@@ -318,7 +323,7 @@ export default function Home() {
               setInMemoryGameItemIndex(inMemoryGameItemIndex + 1);
             }
           }}
-          >
+        >
           Next
         </Button>
       </Box>

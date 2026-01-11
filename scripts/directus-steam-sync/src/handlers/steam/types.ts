@@ -9,7 +9,7 @@ export interface BasicSteamGameInfo {
 }
 
 export interface ProcessedSteamGameInfo {
-  // First step:
+  // First step, and omitted from cache file(s):
 
   basicData?: BasicSteamGameInfo;
 
@@ -37,6 +37,8 @@ export interface ProcessedSteamGameInfo {
 
   metacritic_score?: number | null;
 
+  // These are not used if the user-defined tags are present.
+
   categories: string[];
   genres: string[];
 
@@ -45,11 +47,19 @@ export interface ProcessedSteamGameInfo {
 
   // Third step:
 
-  last_review_update_timestamp?: number;
+  spy_update_timestamp?: number;
   review_category?: string | null;
   total_positive_reviews?: number;
   total_negative_reviews?: number;
   total_reviews?: number;
+  spy_average_forever?: number;
+  spy_average_2weeks?: number;
+  spy_median_forever?: number;
+  spy_median_2weeks?: number;
+  spy_tags?: {
+    name: string;
+    score: number;
+  }[];
 
   // Fourth step:
 

@@ -30,6 +30,9 @@ similar game libraries. If you end up using this, please consider opening PRs wi
 - HLTB integration is broken and will be fixed in a future update by implementing the scraping directly.
 - User-defined tags are also not yet implemented.
 - "Gallery"-like viewing of screenshots is also not yet implemented.
+- "Tags you've engaged with" is also not yet implemented.
+- A recommendations engine is not yet implemented.
+  - This will be based on a heuristic, not machine learning or generative AI.
 
 ## Swiper
 

@@ -14,6 +14,8 @@ interface FetchHLTBDataOptions {
   useCache?: boolean;
 }
 
+// FIXME: This is currently completely broken. HLTB values will not come through. Should rewrite using direct HTTPS.
+
 export async function processHltbDataForSteamGames(
   gameInfos: ProcessedSteamGameInfo[],
   options = FetchHLTBDataDefaultOptions,

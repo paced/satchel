@@ -10,7 +10,7 @@ import { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
 import { mapSteamAppToProcessedGameInfo } from "./mappers";
 import { logProgress } from "../../utils/logger";
 import sleep from "../../utils/sleep";
-import { processHltbDataForSteamGames } from "../hltb";
+// import { processHltbDataForSteamGames } from "../hltb";
 
 /**
  * Delay between Steam Store API requests to avoid rate limiting.
@@ -228,8 +228,10 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   await processSteamGameReviews(gameInfos, options, logger);
   await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
 
-  await processHltbDataForSteamGames(gameInfos, options, logger);
-  await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
+  // FIXME: These are borked.
+
+  // await processHltbDataForSteamGames(gameInfos, options, logger);
+  // await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
 
   return gameInfos;
 }

@@ -28,6 +28,10 @@ similar game libraries. If you end up using this, please consider opening PRs wi
 The file is getting large. It is a to-do item to reduce the size by paging it over multiple files, and to provide the
 language in the filename so other languages can also be cached.
 
+HLTB integration is broken and will be fixed in a future update by implementing the scraping directly.
+
+User-defined tags are also not yet implemented.
+
 ## Swiper
 
 - A sub-app that allows a simple button interface for adding statuses to items in Directus.

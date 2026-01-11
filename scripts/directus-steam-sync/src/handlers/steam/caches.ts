@@ -29,14 +29,23 @@ export async function updateSteamGameInfoCache(
   logger: Logger,
 ): Promise<void> {
   try {
-    const combinedGameInfos = [...existingGameInfos, ...gameInfos];
+    // Prioritise the new game infos over the existing ones.
 
-    const uniqueGameInfosMap: Record<number, ProcessedSteamGameInfo> = {};
-    combinedGameInfos.forEach((gameInfo) => {
-      uniqueGameInfosMap[gameInfo.appId] = gameInfo;
+    const newGameInfosKeys = new Set(gameInfos.map((gameInfo) => gameInfo.appId));
+    const combinedGameInfos = [...gameInfos];
+
+    existingGameInfos.forEach((gameInfo) => {
+      if (!newGameInfosKeys.has(gameInfo.appId)) {
+        combinedGameInfos.push(gameInfo);
+      }
     });
 
-    const uniqueGameInfos = Object.values(uniqueGameInfosMap).sort((a, b) => a.appId - b.appId);
+    // At this point, "combinedGameInfos" has all unique appIds, with the latest data.
+
+    const uniqueGameInfos = Object.values(combinedGameInfos).sort((a, b) => a.appId - b.appId);
+
+    // Need to remove "basicData" before writing to cache, as it can contain user-personalized data.
+
     const gameInfosWithoutPersonalization = uniqueGameInfos.map((gameInfo) => {
       const { basicData, ...rest } = gameInfo;
 

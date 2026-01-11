@@ -210,16 +210,27 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
     });
   }
 
+  // When we write the cache here, we write it the first time in a session, so the "cached game infos" are simply the
+  // ones that we read before...
+
   await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
   await updateKnownDeletedGamesCache(knownDeletedAppIds, logger);
 
+  // ...however, since now the cache is update with the new info after writing the Steam Spy information, we need to
+  // re-load it to have the latest info for the next step. This is even if useCache is false.
+  //
+  // Note that since the cache updates always prioiritise newer information, this might not end up being true and slow
+  // down execution, but I/O from file system is much faster than potentially thousands of delayed API calls.
+
   await fetchSteamSpyDataForAppIds(gameInfos, options, logger);
-  await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
+  const refreshedCachedGameInfosA = await loadGameInfoCache(logger);
+  await updateSteamGameInfoCache(refreshedCachedGameInfosA, gameInfos, logger);
 
   // FIXME: These are borked.
 
   // await processHltbDataForSteamGames(gameInfos, options, logger);
-  // await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
+  // const refreshedCachedGameInfosB = await loadGameInfoCache(logger);
+  // await updateSteamGameInfoCache(refreshedCachedGameInfosB, gameInfos, logger);
 
   return gameInfos;
 }

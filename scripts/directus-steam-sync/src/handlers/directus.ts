@@ -20,9 +20,12 @@ const DIRECTUS_GAME_PUBLISHERS_KEY = "Publishers";
 const DIRECTUS_GAME_MARKETPLACE_KEY = "Marketplace";
 const DIRECTUS_GAME_URL_KEY = "URL";
 const DIRECTUS_GAME_THUMBNAIL_KEY = "Thumbnail";
+const DIRECTUS_GAME_SCREENSHOTS_KEY = "Screenshots";
 const DIRECTUS_GAME_DESCRIPTION_KEY = "Description";
 const DIRECTUS_GAME_TAGS_KEY = "Tags";
 const DIRECTUS_GAME_METACRITIC_SCORE_KEY = "Metacritic_Score";
+const DIRECTUS_GAME_LAST_PLAYED_KEY = "Last_Played";
+const DIRECTUS_GAME_HOURS_KEY = "Hours";
 
 /**
  * The total number of supported pages we'll attempt to fetch.
@@ -78,10 +81,13 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       [DIRECTUS_GAME_MARKETPLACE_KEY]: "Steam",
       [DIRECTUS_GAME_URL_KEY]: `${STEAM_STORE_URL_BASE}/${gameData.appId}`,
       [DIRECTUS_GAME_THUMBNAIL_KEY]: gameData.header_image,
+      [DIRECTUS_GAME_SCREENSHOTS_KEY]: gameData.screenshots.map((screenshot) => screenshot.path_full).join("\n"),
       [DIRECTUS_GAME_DESCRIPTION_KEY]: gameData.short_description,
       [DIRECTUS_GAME_TAGS_KEY]: [...gameData.genres, ...gameData.categories],
       [DIRECTUS_GAME_STEAM_ID_KEY]: gameData.appId,
       [DIRECTUS_GAME_METACRITIC_SCORE_KEY]: gameData.metacritic_score,
+      [DIRECTUS_GAME_LAST_PLAYED_KEY]: gameData.basicData?.lastPlayed || null,
+      [DIRECTUS_GAME_HOURS_KEY]: gameData.basicData?.hours || 0,
     };
 
     if (directusItemId) {
@@ -101,6 +107,13 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       }
     } else {
       try {
+        // When creating, there's a chance that there's a duplicate name either from the same game owned on a different
+        // platform, or from a game twice in the same platform. In this case, we need to check it and do an update
+        // instead, or accepting the existing item if it is "better." For Steam games, it means the Hours value is not
+        // zero, or the Metacritic score isn't null.
+
+        // TODO: Handle for this.
+
         await DIRECTUS_CLIENT.request(createItem(DIRECTUS_GAME_COLLECTION_NAME, data));
       } catch (err) {
         logger.error(

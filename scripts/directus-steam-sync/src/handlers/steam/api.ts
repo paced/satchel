@@ -1,6 +1,7 @@
-import { Logger } from "pino";
+import { type Logger } from "pino";
 import { config } from "dotenv";
 import { updateOwnedGamesCache } from "./caches";
+import { type BasicSteamGameInfo } from "./types";
 
 const { parsed } = config({ quiet: true });
 
@@ -38,14 +39,23 @@ export async function fetchOwnedGames(targetSteamId: string, logger: Logger) {
 
   logger.info(`...(re)fetch complete; user has %d games in their library`, gameCount);
 
-  const appIds: number[] = [];
+  const basicSteamGameInfos: BasicSteamGameInfo[] = [];
   games.forEach((game: any) => {
-    appIds.push(game.appid);
+    // This information might not be present for other users than the API key-holder.
+
+    const lastPlayedUnix = game.rtime_last_played;
+    const lastPlayedIsoDate = lastPlayedUnix ? new Date(lastPlayedUnix * 1000).toISOString() : undefined;
+    basicSteamGameInfos.push({
+      appId: game.appid,
+      hours: Math.round((game.playtime_forever || 0) / 60),
+      lastPlayed: lastPlayedIsoDate,
+      lastPlayedUnix,
+    });
   });
 
-  await updateOwnedGamesCache(targetSteamId, appIds, logger);
+  await updateOwnedGamesCache(targetSteamId, basicSteamGameInfos, logger);
 
-  return appIds;
+  return basicSteamGameInfos;
 }
 
 export function createLookupUrl(appId: number, language: string) {

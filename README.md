@@ -36,6 +36,9 @@ similar game libraries. If you end up using this, please consider opening PRs wi
 This allows setting nearly all fields in one convenient app. The only thing it doesn't let you do is set reviews, which
 should be done directly in Directus to games that already have a tier.
 
+Game information such as screenshots, marketplace/store links, IGDB, and HLTB links will be placed on the form to help
+decide, along with a big Metacritic score if available.
+
 ### Usage
 
 This is a React application. The production version requires you to input your Directus instance URL and token directly,

@@ -1,13 +1,16 @@
 import { Logger } from "pino";
-import { ProcessedSteamGameInfo } from "./types";
+import { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
 
 export function mapSteamAppToProcessedGameInfo(
+  basicData: BasicSteamGameInfo,
   data: any,
   query: string,
   logger: Logger,
 ): ProcessedSteamGameInfo | undefined {
   try {
     return {
+      basicData,
+
       appId: data.steam_appid,
       query: query,
 

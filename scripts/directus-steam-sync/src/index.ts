@@ -39,6 +39,9 @@ async function main() {
 
   logger.info("steam_ids (#) = %d", args.steam_ids ? args.steam_ids.length : 0);
   logger.info("language = %s", args.language || "english");
+  logger.info("---------");
+
+  // STEAM:
 
   if (args.steam_ids.length > 0) {
     const steamGames = await processSteamGames(
@@ -52,9 +55,11 @@ async function main() {
     );
 
     await upsertAllSteamGames(steamGames, logger);
+
+    // GENERIC:
+
+    // TODO: Fill this in with HLTB and IGDB processing.
   }
 }
 
-main().catch((err) => {
-  throw new Error("unhandled error: %s", err);
-});
+void main();

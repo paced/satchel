@@ -1,4 +1,14 @@
+export interface BasicSteamGameInfo {
+  appId: number;
+  hours: number;
+
+  lastPlayed?: string;
+  lastPlayedUnix?: number;
+}
+
 export interface ProcessedSteamGameInfo {
+  basicData?: BasicSteamGameInfo;
+
   appId: number;
   query: string;
 

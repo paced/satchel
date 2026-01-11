@@ -6,7 +6,7 @@ import {
 } from "./caches";
 import { Logger } from "pino";
 import { createLookupUrl, fetchOwnedGames, lookupSteamGame } from "./api";
-import { ProcessedSteamGameInfo } from "./types";
+import { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
 import { mapSteamAppToProcessedGameInfo } from "./mappers";
 import { logProgress } from "../../utils/logger";
 
@@ -105,7 +105,7 @@ export async function processSteamGames(
 }
 
 async function processSteamGamesForSingleUser(targetSteamId: string, options: ProcessGamesOptions, logger: Logger) {
-  const ownedSteamAppIds: number[] = await fetchOwnedGames(targetSteamId, logger);
+  const basicSteamGameInfos: BasicSteamGameInfo[] = await fetchOwnedGames(targetSteamId, logger);
 
   logger.info("---------");
   logger.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
@@ -117,57 +117,65 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
 
-  logger.info("beginning processing of %d owned Steam games...", ownedSteamAppIds.length);
+  logger.info("beginning processing of %d owned Steam games...", basicSteamGameInfos.length);
 
-  for (const appId of ownedSteamAppIds) {
-    logProgress(ownedSteamAppIds.indexOf(appId) + 1, ownedSteamAppIds.length, "game", logger);
+  for (const basicGameInfo of basicSteamGameInfos) {
+    logProgress(basicSteamGameInfos.indexOf(basicGameInfo) + 1, basicSteamGameInfos.length, "game", logger);
 
-    const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === appId);
+    const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === basicGameInfo.appId);
     if (existingGameIndex !== -1) {
-      logger.debug("duplicate app ID %d found, skipping duplicate", appId);
+      logger.debug("duplicate app ID %d found, skipping duplicate", basicGameInfo.appId);
 
       continue;
     }
 
-    const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === appId);
+    const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === basicGameInfo.appId);
     if (cachedGameInfo) {
-      logger.debug("using cached data for app ID %d", appId);
-      gameInfos.push(cachedGameInfo);
+      logger.debug("using cached data for app ID %d", basicGameInfo.appId);
+      gameInfos.push({
+        ...cachedGameInfo,
+        basicData: basicGameInfo,
+      });
 
       continue;
     }
 
-    if (knownDeletedAppIds.includes(appId)) {
-      logger.debug("skipping known deleted app ID %d", appId);
-      failedGameInfos.push(appId);
+    if (knownDeletedAppIds.includes(basicGameInfo.appId)) {
+      logger.debug("skipping known deleted app ID %d", basicGameInfo.appId);
+      failedGameInfos.push(basicGameInfo.appId);
 
       continue;
     }
     await new Promise((resolve) => setTimeout(resolve, STEAM_STORE_API_SLEEP_MS));
 
-    const lookupUrl = createLookupUrl(appId, options.language || DEFAULT_LANGUAGE);
+    const lookupUrl = createLookupUrl(basicGameInfo.appId, options.language || DEFAULT_LANGUAGE);
     const appData = await lookupSteamGame(lookupUrl).catch((err) => {
-      logger.error("HTTP fetch failed for app ID %d: %s", appId, err);
+      logger.error("HTTP fetch failed for app ID %d: %s", basicGameInfo.appId, err);
 
       return;
     });
 
-    if (!appData || !appData[appId]) {
+    if (!appData || !appData[basicGameInfo.appId]) {
       continue;
     }
 
-    if (!appData[appId].success) {
-      logger.warn("fetch succeeded but success is false for app ID %d", appId);
-      failedGameInfos.push(appId);
+    if (!appData[basicGameInfo.appId].success) {
+      logger.warn("fetch succeeded but success is false for app ID %d", basicGameInfo.appId);
+      failedGameInfos.push(basicGameInfo.appId);
 
-      if (appData[appId] && appData[appId].success === false) {
-        knownDeletedAppIds.push(appId);
+      if (appData[basicGameInfo.appId] && appData[basicGameInfo.appId].success === false) {
+        knownDeletedAppIds.push(basicGameInfo.appId);
       }
 
       continue;
     }
 
-    const parsedGameInfo = mapSteamAppToProcessedGameInfo(appData[appId].data, lookupUrl, logger);
+    const parsedGameInfo = mapSteamAppToProcessedGameInfo(
+      basicGameInfo,
+      appData[basicGameInfo.appId].data,
+      lookupUrl,
+      logger,
+    );
     if (parsedGameInfo) {
       gameInfos.push(parsedGameInfo);
     }

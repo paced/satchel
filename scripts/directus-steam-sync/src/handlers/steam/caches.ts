@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { Logger } from "pino";
-import { ProcessedSteamGameInfo } from "./types";
+import type { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
 
 const GAME_INFO_CACHE_PATH = "out/steam-game-info-cache.json";
 const GAME_OWNED_CACHE_PATH = "out/steam-owned-games-cache-%d.json";
@@ -37,11 +37,16 @@ export async function updateSteamGameInfoCache(
     });
 
     const uniqueGameInfos = Object.values(uniqueGameInfosMap).sort((a, b) => a.appId - b.appId);
+    const gameInfosWithoutPersonalization = uniqueGameInfos.map((gameInfo) => {
+      const { basicData, ...rest } = gameInfo;
+
+      return rest;
+    });
 
     await mkdir("out", { recursive: true });
-    await writeFile(GAME_INFO_CACHE_PATH, JSON.stringify(uniqueGameInfos, null, 2), "utf-8");
+    await writeFile(GAME_INFO_CACHE_PATH, JSON.stringify(gameInfosWithoutPersonalization, null, 2), "utf-8");
 
-    logger.info("wrote %d games to cache", uniqueGameInfos.length);
+    logger.info("wrote %d games to cache", gameInfosWithoutPersonalization.length);
   } catch (err) {
     logger.error("failed to write cache file: %s", err);
   }
@@ -66,11 +71,15 @@ export async function loadOwnedGamesCache(targetSteamId: string, logger: Logger)
   return cachedAppIds;
 }
 
-export async function updateOwnedGamesCache(targetSteamId: string, appIds: number[], logger: Logger): Promise<void> {
+export async function updateOwnedGamesCache(
+  targetSteamId: string,
+  basicSteamGameInfos: BasicSteamGameInfo[],
+  logger: Logger,
+): Promise<void> {
   try {
     const cacheFilename = GAME_OWNED_CACHE_PATH.replace("%d", targetSteamId);
 
-    const sortedAppIds = appIds.sort((a, b) => a - b);
+    const sortedAppIds = basicSteamGameInfos.sort((a, b) => a.appId - b.appId);
 
     await mkdir("out", { recursive: true });
     await writeFile(cacheFilename, JSON.stringify(sortedAppIds, null, 2), "utf-8");

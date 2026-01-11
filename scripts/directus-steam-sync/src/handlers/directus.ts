@@ -86,8 +86,8 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
       [DIRECTUS_GAME_TAGS_KEY]: [...gameData.genres, ...gameData.categories],
       [DIRECTUS_GAME_STEAM_ID_KEY]: gameData.appId,
       [DIRECTUS_GAME_METACRITIC_SCORE_KEY]: gameData.metacritic_score,
-      [DIRECTUS_GAME_LAST_PLAYED_KEY]: gameData.basicData?.lastPlayed || null,
-      [DIRECTUS_GAME_HOURS_KEY]: gameData.basicData?.hours || 0,
+      [DIRECTUS_GAME_LAST_PLAYED_KEY]: gameData.basicData?.isAdmin ? gameData.basicData?.lastPlayed || null : null,
+      [DIRECTUS_GAME_HOURS_KEY]: gameData.basicData?.isAdmin ? gameData.basicData?.hours || 0 : 0,
     };
 
     if (directusItemId) {

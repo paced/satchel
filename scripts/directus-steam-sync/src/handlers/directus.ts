@@ -36,11 +36,11 @@ const DIRECTUS_GAME_HLTB_HOURS_COMPLETIONIST_KEY = "HLTB_Hours_Completionist";
 const DIRECTUS_GAME_HLTB_NAME_KEY = "HLTB_Name";
 const DIRECTUS_GAME_HLTB_URL_KEY = "HLTB_URL";
 const DIRECTUS_GAME_RELEASE_DATE_KEY = "Release_Date";
-const DIRECTUS_GAME_STEAM_SPY_AVERAGE_FOREVER_KEY = "SteamSpy_Average_Forever";
-const DIRECTUS_GAME_STEAM_SPY_AVERAGE_2_WEEKS_KEY = "SteamSpy_Average_2_Weeks";
-const DIRECTUS_GAME_STEAM_SPY_MEDIAN_FOREVER_KEY = "SteamSpy_Median_Forever";
-const DIRECTUS_GAME_STEAM_SPY_MEDIAN_2_WEEKS_KEY = "SteamSpy_Median_2_Weeks";
-const DIRECTUS_GAME_STEAM_SPY_TAGS_KEY = "SteamSpy_Tags";
+const DIRECTUS_GAME_STEAM_SPY_AVERAGE_FOREVER_KEY = "Spy_Average_Forever";
+const DIRECTUS_GAME_STEAM_SPY_AVERAGE_2_WEEKS_KEY = "Spy_Average_2_Weeks";
+const DIRECTUS_GAME_STEAM_SPY_MEDIAN_FOREVER_KEY = "Spy_Median_Forever";
+const DIRECTUS_GAME_STEAM_SPY_MEDIAN_2_WEEKS_KEY = "Spy_Median_2_Weeks";
+const DIRECTUS_GAME_STEAM_SPY_TAGS_KEY = "Spy_Tags";
 
 /**
  * The total number of supported pages we'll attempt to fetch.

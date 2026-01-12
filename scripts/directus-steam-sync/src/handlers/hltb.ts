@@ -4,6 +4,7 @@ import { ProcessedSteamGameInfo } from "./steam/types";
 import { chromium } from "playwright-extra";
 import stealth from "puppeteer-extra-plugin-stealth";
 import { logProgress } from "../utils/logger";
+import { loadDissimilarGamesCache, updateDissimilarGamesCache } from "./steam/caches";
 
 const FetchHLTBDataDefaultOptions: FetchHLTBDataOptions = {
   useCache: true,
@@ -41,12 +42,91 @@ export async function processHltbDataForSteamGames(
 
   logger.debug("captured HLTB auth token: %s", authToken);
 
+  const dissimilarGamesCache = await loadDissimilarGamesCache("dissimilar", logger);
+  const unconfidentGamesCache = await loadDissimilarGamesCache("unconfident", logger);
+
+  // Merge the two caches together since they both tell us if a game matches or not.
+
+  const appIdToPossibleNamesMap: Record<
+    number,
+    { gameInfoName: string; matchedName: string; status: "yes" | "no" | "unconfirmed" }
+  > = {};
+  for (const [appIdStr, entry] of Object.entries(dissimilarGamesCache)) {
+    const appId = parseInt(appIdStr, 10);
+
+    appIdToPossibleNamesMap[appId] = entry;
+  }
+  for (const [appIdStr, entry] of Object.entries(unconfidentGamesCache)) {
+    const appId = parseInt(appIdStr, 10);
+
+    appIdToPossibleNamesMap[appId] = entry;
+  }
+
+  const dissimilarNameWarnings: { appId: number; gameInfoName: string; matchedName: string }[] = [];
+  const nonConfidentMatchWarnings: { appId: number; gameInfoName: string; matchedName: string }[] = [];
+
   let failedAttempts = 0;
 
   for (const gameInfo of gameInfos) {
     logProgress(gameInfos.indexOf(gameInfo) + 1, gameInfos.length, "HLTB lookup", logger);
 
-    if (gameInfo.last_hltb_update_timestamp && finalOptions.useCache) {
+    const similarityEntry = appIdToPossibleNamesMap[gameInfo.appId];
+    const hasCachedSimilarityEntry = similarityEntry && similarityEntry.status === "yes";
+
+    const sanitizedGameInfoName = sanitizeGameName(gameInfo.name);
+    const sanitizedHltbName = sanitizeGameName(gameInfo.hltb_name || "");
+
+    const appNameMatchesHltbName = sanitizedGameInfoName === sanitizedHltbName;
+    const appNameContainsHltbName = sanitizedGameInfoName.includes(sanitizedHltbName);
+    const hltbNameContainsAppName = sanitizedHltbName.includes(sanitizedGameInfoName);
+
+    const namesAreSimilar = appNameMatchesHltbName || appNameContainsHltbName || hltbNameContainsAppName;
+
+    if (
+      hasCachedSimilarityEntry &&
+      similarityEntry.gameInfoName === gameInfo.name &&
+      similarityEntry.matchedName === gameInfo.hltb_name
+    ) {
+      // Known dissimilar name but same game, so no need to warn or re-run HLTB fetch.
+    } else if (gameInfo.hltb_name && !namesAreSimilar) {
+      logger.warn(
+        "detected dissimilar name for App ID %d: %s (%s) vs %s (%s)",
+        gameInfo.appId,
+        gameInfo.name,
+        sanitizedGameInfoName,
+        gameInfo.hltb_name,
+        sanitizedHltbName,
+      );
+      dissimilarNameWarnings.push({
+        appId: gameInfo.appId,
+        gameInfoName: gameInfo.name,
+        matchedName: gameInfo.hltb_name,
+      });
+    } else if (gameInfo.hltb_name && !appNameMatchesHltbName) {
+      logger.warn(
+        "detected non-confident name match for App ID %d: %s (%s) vs %s (%s)",
+        gameInfo.appId,
+        gameInfo.name,
+        sanitizedGameInfoName,
+        gameInfo.hltb_name,
+        sanitizedHltbName,
+      );
+      nonConfidentMatchWarnings.push({
+        appId: gameInfo.appId,
+        gameInfoName: gameInfo.name,
+        matchedName: gameInfo.hltb_name,
+      });
+    }
+
+    const isExplicitlyDissimilar =
+      similarityEntry &&
+      similarityEntry.status === "no" &&
+      similarityEntry.gameInfoName === gameInfo.name &&
+      similarityEntry.matchedName === gameInfo.hltb_name;
+
+    if (isExplicitlyDissimilar) {
+      logger.warn("going ahead with HLTB fetch for %s because of explicit dissimilarity", gameInfo.name);
+    } else if (gameInfo.last_hltb_update_timestamp && finalOptions.useCache) {
       logger.debug("skipping HLTB fetch for %s as data already exists", gameInfo.name);
 
       continue;
@@ -117,6 +197,9 @@ export async function processHltbDataForSteamGames(
   }
 
   logger.info("completed fetching HLTB data");
+
+  await updateDissimilarGamesCache("dissimilar", dissimilarGamesCache, dissimilarNameWarnings, logger);
+  await updateDissimilarGamesCache("unconfident", unconfidentGamesCache, nonConfidentMatchWarnings, logger);
 
   return gameInfos;
 }
@@ -207,7 +290,7 @@ async function makeHtlbSearchRequest(query: string, authToken: string): Promise<
             rangeTime: { min: null, max: null },
             gameplay: { perspective: "", flow: "", genre: "", difficulty: "" },
             rangeYear: { min: "", max: "" },
-            modifier: "",
+            modifier: "hide_dlc",
           },
           users: { sortCategory: "postcount" },
           lists: { sortCategory: "follows" },
@@ -223,4 +306,122 @@ async function makeHtlbSearchRequest(query: string, authToken: string): Promise<
   } finally {
     await browser.close();
   }
+}
+
+// Note: shorter names that contain longer ones should be below the longer ones.
+
+const GAME_NAME_STRINGS_TO_IGNORE = [
+  "Game of the Year Edition",
+  "Game of the Year",
+  "GOTY Edition",
+  "GOTY",
+  "Definitive Edition",
+  "Complete Edition",
+  "Ultimate Edition",
+  "Legendary Edition",
+  "Anniversary Edition",
+  "Deluxe Edition",
+  "Deluxe",
+  "Collector's Edition",
+  "Enhanced Edition",
+  "Enhanced",
+  "Remastered Edition",
+  "Remastered",
+  "Remaster",
+  "Special Edition",
+  "Limited Edition",
+  "Standard Edition",
+  "HD Edition",
+  "HD",
+  "Directors Cut",
+  "Gold Edition",
+  "Sid Meiers",
+  "Shin Megami Tensei",
+  "Farewell Edition",
+  "Landmark Edition",
+  "Valhalla Edition",
+  "VR Edition",
+  "VR",
+  "Collectors Edition",
+  "Collection",
+  "Extreme",
+  "Extended Cut",
+  "Extended",
+  "Slightly Better Edition",
+];
+
+function sanitizeGameName(name: string): string {
+  let sanitized = name
+    .replaceAll("™", "")
+    .replaceAll("®", "")
+    .replaceAll("©", "")
+    .replaceAll("-", " ")
+    .replaceAll("_", " ")
+    .replaceAll("&", "and")
+    .replaceAll(":", "")
+    .replaceAll(",", "")
+    .replaceAll(".", "")
+    .replaceAll("'", "")
+    .replaceAll("’", "")
+    .replaceAll("`", "")
+    .replaceAll("!", "")
+    .replaceAll("?", "")
+    .replaceAll("+", "")
+    .replaceAll("–", " ")
+    .replaceAll("“", "")
+    .replaceAll("”", "")
+    .replaceAll("‘", "")
+    .replaceAll("’", "")
+    .toLowerCase()
+    .replaceAll("ō", "o")
+    .replaceAll("é", "e")
+    .replaceAll("á", "a")
+    .replaceAll("í", "i")
+    .replaceAll("ú", "u")
+    .replaceAll("ñ", "n")
+    .replaceAll("ä", "a")
+    .replaceAll("ö", "o")
+    .replaceAll("ü", "u")
+    .replaceAll("û", "u")
+    .replaceAll("ß", "ss")
+    .replaceAll("æ", "ae")
+    .replaceAll("ø", "o")
+    .replaceAll("å", "a")
+    .replaceAll("ç", "c")
+    .replaceAll("œ", "oe")
+    .replaceAll("ğ", "g")
+    .replaceAll("ş", "s")
+    .replaceAll("ı", "i")
+    .replaceAll("ğ", "g")
+    .toLowerCase() // Just in case.
+    .trim();
+
+  // Special cases:
+
+  sanitized = sanitized.replaceAll("episode0", "episode ");
+
+  for (const stringToRemove of GAME_NAME_STRINGS_TO_IGNORE) {
+    const lowerStringToRemove = stringToRemove.toLowerCase();
+
+    sanitized = sanitized.replaceAll(lowerStringToRemove, "");
+  }
+
+  const romanToArabicMap: Record<string, string> = {
+    " x": " 10",
+    " ix": " 9",
+    " viii": " 8",
+    " vii": " 7",
+    " vi": " 6",
+    " v": " 5",
+    " iv": " 4",
+    " iii": " 3",
+    " ii": " 2",
+    " i": " 1",
+  };
+
+  for (const [roman, arabic] of Object.entries(romanToArabicMap)) {
+    sanitized = sanitized.replaceAll(new RegExp(roman + "(\\s|$)", "g"), arabic + " ");
+  }
+
+  return sanitized.replaceAll(" ", "").trim();
 }

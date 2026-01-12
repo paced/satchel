@@ -32,7 +32,6 @@ async function main() {
 
   logger.info("verbose = %s", args.verbose || false);
   logger.info("no_cache = %s", args.no_cache || false);
-
   logger.info("steam_ids (#) = %d", args.steam_ids ? args.steam_ids.length : 0);
   logger.info("language = %s", args.language || "english");
 

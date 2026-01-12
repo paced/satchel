@@ -47,3 +47,5 @@ next-env.d.ts
 scripts/directus-steam-sync/out/*
 !scripts/directus-steam-sync/out/steam-game-info-cache.json
 !scripts/directus-steam-sync/out/steam-known-deleted-games-cache.json
+!scripts/directus-steam-sync/out/steam-dissimilar-games-cache.txt
+!scripts/directus-steam-sync/out/steam-unconfident-games-cache.txt

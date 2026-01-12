@@ -3,6 +3,7 @@ import sleep from "../utils/sleep";
 import { ProcessedSteamGameInfo } from "./steam/types";
 import { chromium } from "playwright-extra";
 import stealth from "puppeteer-extra-plugin-stealth";
+import { logProgress } from "../utils/logger";
 
 const FetchHLTBDataDefaultOptions: FetchHLTBDataOptions = {
   useCache: true,
@@ -43,7 +44,7 @@ export async function processHltbDataForSteamGames(
   let failedAttempts = 0;
 
   for (const gameInfo of gameInfos) {
-    logger.debug("querying HLTB for game: %s", gameInfo.name);
+    logProgress(gameInfos.indexOf(gameInfo) + 1, gameInfos.length, "HLTB lookup", logger);
 
     if (gameInfo.last_hltb_update_timestamp && finalOptions.useCache) {
       logger.debug("skipping HLTB fetch for %s as data already exists", gameInfo.name);
@@ -54,7 +55,7 @@ export async function processHltbDataForSteamGames(
     await sleep(HLTB_API_SLEEP_MS_BASE + failedAttempts * 1000);
 
     try {
-      const searchQuery = gameInfo.name.replaceAll("™", "").replaceAll("®", "")
+      const searchQuery = gameInfo.name.replaceAll("™", "").replaceAll("®", "");
 
       const response = await makeHtlbSearchRequest(searchQuery, authToken);
       const result = response.data;
@@ -62,8 +63,8 @@ export async function processHltbDataForSteamGames(
       if (result && result.length > 0) {
         const hltbData = result[0];
 
-        logger.debug(
-          "fetched HLTB data for %s: main=%d, main+extras=%d, completionist=%d",
+        logger.info(
+          "fetched new HLTB data for %s: main=%d, main+extras=%d, completionist=%d",
           hltbData.game_name,
           Math.round(hltbData.comp_main / 60 / 60),
           Math.round(hltbData.comp_plus / 60 / 60),
@@ -93,7 +94,11 @@ export async function processHltbDataForSteamGames(
         break;
       }
 
-      logger.warn("will retry HLTB data fetch for %s after re-capturing auth token (failed attempts: %d)", gameInfo.name, failedAttempts);
+      logger.warn(
+        "will retry HLTB data fetch for %s after re-capturing auth token (failed attempts: %d)",
+        gameInfo.name,
+        failedAttempts,
+      );
 
       try {
         logger.debug("waiting 5 seconds before recapturing HLTB auth token...");

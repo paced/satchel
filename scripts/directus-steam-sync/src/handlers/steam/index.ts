@@ -158,6 +158,8 @@ async function processSteamGames(
     });
 
     if (!appData || !appData[basicGameInfo.appId]) {
+      logger.error("fetch didn't return data for app ID %d, skipping...", basicGameInfo.appId);
+
       continue;
     }
 
@@ -179,6 +181,8 @@ async function processSteamGames(
       logger,
     );
     if (parsedGameInfo) {
+      logger.info("processed new app ID %d: %s", basicGameInfo.appId, parsedGameInfo.name);
+
       gameInfos.push(parsedGameInfo);
     }
   }

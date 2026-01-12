@@ -1,4 +1,4 @@
-import { processSteamGames } from "./handlers/steam";
+import { processSteamGamesForMultipleUsers } from "./handlers/steam";
 import { upsertAllSteamGames } from "./handlers/directus";
 import { ArgumentParser } from "argparse";
 import { createLogger } from "./utils/logger";
@@ -30,16 +30,11 @@ async function main() {
 
   const logger = createLogger(args.verbose);
 
-  logger.info("---------");
-  logger.info("STARTING");
-  logger.info("---------");
-
   logger.info("verbose = %s", args.verbose || false);
   logger.info("no_cache = %s", args.no_cache || false);
 
   logger.info("steam_ids (#) = %d", args.steam_ids ? args.steam_ids.length : 0);
   logger.info("language = %s", args.language || "english");
-  logger.info("---------");
 
   // STEAM:
 

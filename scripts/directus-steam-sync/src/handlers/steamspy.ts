@@ -47,8 +47,8 @@ export async function fetchSteamSpyDataForAppIds(
       const data = await response.json();
 
       if (data && data.name) {
-        logger.debug(
-          "fetched SteamSpy data for App ID %d (%s): owners=%s, players_2weeks=%d, average_forever=%d",
+        logger.info(
+          "fetched new SteamSpy data for App ID %d (%s): owners=%s, players_2weeks=%d, average_forever=%d",
           gameInfo.appId,
           gameInfo.name,
           data.owners,

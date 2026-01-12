@@ -144,7 +144,7 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
 
         await DIRECTUS_CLIENT.request(createItem(DIRECTUS_GAME_COLLECTION_NAME, data));
 
-        logger.debug("created Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
+        logger.info("created Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
       } catch (err) {
         logger.error(
           "failed to create Directus item for Steam App ID %d (%s): %s",

@@ -183,11 +183,11 @@ export default function Home() {
               <Text size="xs">HLTB Main</Text>
             </Flex>
             <Flex direction="column" ml="lg" align="center">
-              <Title order={6}>{currentGame?.HLTB_Extra || "N/A"}</Title>
+              <Title order={6}>{currentGame?.HLTB_Hours_Extra || "N/A"}</Title>
               <Text size="xs">HLTB Extra</Text>
             </Flex>
             <Flex direction="column" ml="lg" align="center">
-              <Title order={6}>{currentGame?.HLTB_Completionist || "N/A"}</Title>
+              <Title order={6}>{currentGame?.HLTB_Hours_Completionist || "N/A"}</Title>
               <Text size="xs">HLTB Comp.</Text>
             </Flex>
             <Flex direction="column" ml="lg" align="center">

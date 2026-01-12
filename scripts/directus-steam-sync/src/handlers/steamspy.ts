@@ -48,11 +48,11 @@ export async function fetchSteamSpyDataForAppIds(
 
       if (data && data.name) {
         logger.info(
-          "fetched new SteamSpy data for App ID %d (%s): owners=%s, players_2weeks=%d, average_forever=%d",
+          "fetched new SteamSpy data for App ID %d (%s): owners=%s, average_2weeks=%d, average_forever=%d",
           gameInfo.appId,
           gameInfo.name,
           data.owners,
-          data.players_2weeks,
+          data.average_2weeks,
           data.average_forever,
         );
 

@@ -217,5 +217,5 @@ async function processSteamGames(
   const refreshedCachedGameInfosD = await loadGameInfoCache(logger);
   await updateSteamGameInfoCache(refreshedCachedGameInfosD, gameInfoWithSpyInfoAndHltbData, logger);
 
-  return gameInfos;
+  return gameInfoWithSpyInfoAndHltbData;
 }

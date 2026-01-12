@@ -55,10 +55,6 @@ async function main() {
     );
 
     await upsertAllSteamGames(steamGames, logger);
-
-    // GENERIC:
-
-    // TODO: Fill this in with HLTB processing.
   }
 }
 

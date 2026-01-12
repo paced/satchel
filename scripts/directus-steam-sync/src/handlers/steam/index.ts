@@ -11,6 +11,7 @@ import { mapSteamAppToProcessedGameInfo } from "./mappers";
 import { logProgress } from "../../utils/logger";
 import sleep from "../../utils/sleep";
 import { fetchSteamSpyDataForAppIds } from "../steamspy";
+import { processHltbDataForSteamGamesUsingAlternateSource } from "../hltb";
 // import { processHltbDataForSteamGames } from "../hltb";
 
 /**
@@ -226,11 +227,9 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   const refreshedCachedGameInfosA = await loadGameInfoCache(logger);
   await updateSteamGameInfoCache(refreshedCachedGameInfosA, gameInfos, logger);
 
-  // FIXME: These are borked.
-
-  // await processHltbDataForSteamGames(gameInfos, options, logger);
-  // const refreshedCachedGameInfosB = await loadGameInfoCache(logger);
-  // await updateSteamGameInfoCache(refreshedCachedGameInfosB, gameInfos, logger);
+  await processHltbDataForSteamGamesUsingAlternateSource(gameInfos, options, logger);
+  const refreshedCachedGameInfosB = await loadGameInfoCache(logger);
+  await updateSteamGameInfoCache(refreshedCachedGameInfosB, gameInfos, logger);
 
   return gameInfos;
 }

@@ -13,7 +13,7 @@ interface FetchHLTBDataOptions {
 }
 
 const MAX_HLTB_FAILED_ATTEMPTS = 10;
-const HLTB_API_SLEEP_MS_BASE = 1000;
+const HLTB_API_SLEEP_MS_BASE = 1500;
 
 export async function processHltbDataForSteamGames(
   gameInfos: ProcessedSteamGameInfo[],
@@ -29,7 +29,14 @@ export async function processHltbDataForSteamGames(
   logger.info("fetching HLTB data for %d games...", gameInfos.length);
   logger.info("capturing HLTB auth token...");
 
-  let authToken = await captureHltbAuthToken();
+  let authToken: string;
+  try {
+    authToken = await captureHltbAuthToken();
+  } catch (err) {
+    logger.error("failed to capture HLTB auth token: %s, aborting HLTB data fetch", err);
+
+    return gameInfos;
+  }
 
   logger.debug("captured HLTB auth token: %s", authToken);
 
@@ -47,7 +54,9 @@ export async function processHltbDataForSteamGames(
     await sleep(HLTB_API_SLEEP_MS_BASE + failedAttempts * 1000);
 
     try {
-      const response = await makeHtlbSearchRequest(gameInfo.name, authToken);
+      const searchQuery = gameInfo.name.replaceAll("™", "").replaceAll("®", "")
+
+      const response = await makeHtlbSearchRequest(searchQuery, authToken);
       const result = response.data;
 
       if (result && result.length > 0) {
@@ -66,6 +75,8 @@ export async function processHltbDataForSteamGames(
         gameInfo.hltb_hours_extra = Math.round(hltbData.comp_plus / 60 / 60);
         gameInfo.hltb_hours_completionist = Math.round(hltbData.comp_100 / 60 / 60);
         gameInfo.hltb_url = `https://howlongtobeat.com/game/${hltbData.game_id}`;
+      } else {
+        logger.debug("no HLTB data found for %s but request succeeded", gameInfo.name);
       }
 
       gameInfo.last_hltb_update_timestamp = new Date().getTime();
@@ -78,14 +89,31 @@ export async function processHltbDataForSteamGames(
 
       if (failedAttempts >= MAX_HLTB_FAILED_ATTEMPTS) {
         logger.error("maximum HLTB failed attempts reached; aborting HLTB data fetch");
+
         break;
       }
 
-      logger.warn("will retry HLTB data fetch for %s after re-capturing auth token (failed attempts: %d)");
+      logger.warn("will retry HLTB data fetch for %s after re-capturing auth token (failed attempts: %d)", gameInfo.name, failedAttempts);
 
-      authToken = await captureHltbAuthToken();
+      try {
+        logger.debug("waiting 5 seconds before recapturing HLTB auth token...");
+
+        await sleep(5000);
+
+        authToken = await captureHltbAuthToken();
+
+        logger.debug("recaptured HLTB auth token: %s", authToken);
+      } catch (err) {
+        logger.error("failed to recapture HLTB auth token: %s, aborting...", err);
+
+        break;
+      }
     }
   }
+
+  logger.info("completed fetching HLTB data");
+
+  return gameInfos;
 }
 
 chromium.use(stealth());
@@ -97,7 +125,7 @@ async function captureHltbAuthToken(): Promise<string> {
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     viewport: { width: 1920, height: 1080 },
     locale: "en-US",
-    timezoneId: "America/New_York",
+    timezoneId: "Australia/Melbourne",
   });
   const page = await context.newPage();
 

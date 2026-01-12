@@ -20,5 +20,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["pages", "components", "generated"]
+  "include": ["pages", "components", "handlers", "generated"]
 }

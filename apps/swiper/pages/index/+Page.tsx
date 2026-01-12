@@ -1,134 +1,29 @@
-import { RestClient, createDirectus, readItems, rest, serverPing, staticToken } from "@directus/sdk";
+import { type RestClient } from "@directus/sdk";
 import { Carousel, CarouselSlide } from "@mantine/carousel";
-import {
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Container,
-  Flex,
-  Grid,
-  GridCol,
-  Image,
-  Input,
-  InputLabel,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
+import { Anchor, Badge, Box, Button, Container, Flex, Grid, GridCol, Image, Stack, Text, Title } from "@mantine/core";
 import { useLocalStorage } from "@mantine/hooks";
 import { compactInteger } from "humanize-plus";
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
-const TAGS_TO_REMOVE = [
-  "custom volume controls",
-  "keyboard only option",
-  "stereo sound",
-  "surround sound",
-  "valve anti-cheat enabled",
-  "remote play together",
-  "family sharing",
-  "steam achievements",
-  "steam cloud",
-  "steam leaderboards",
-  "steam trading cards",
-  "partial controller support",
-  "full controller support",
-  "remote play on phone",
-  "remote play on tablet",
-  "touch only option",
-  "mouse only option",
-  "adjustable difficulty",
-  "captions available",
-  "adjustable text size",
-  "stats",
-  "color alternatives",
-  "camera comfort",
-  "remote play on tv",
-  "steam turn notifications",
-];
+import { loadGameItems } from "../../handlers/directus.ts";
+import { determineTags } from "../../handlers/tags.ts";
+import DirectusForm from "./partials/DirectusForm.tsx";
 
 export default function Home() {
-  const [directusUrl, setDirectusUrl] = useLocalStorage<string>({ key: "directusUrl", defaultValue: "" });
-  const [directusToken, setDirectusToken] = useLocalStorage<string>({ key: "directusToken", defaultValue: "" });
+  const [directusUrl, _setDirectusUrl] = useLocalStorage<string>({ key: "directusUrl", defaultValue: "" });
+
   const [directusClient, setDirectusClient] = useState<RestClient<any> | null>(null);
   const [inMemoryGameItems, setInMemoryGameItems] = useState<any[] | null>(null);
   const [inMemoryGameItemIndex, setInMemoryGameItemIndex] = useState<number>(0);
   const [isDirectusFormShown, setIsDirectusFormShown] = useState<boolean>(true);
 
-  const handleDirectusUrlChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      setDirectusUrl(e.currentTarget.value);
-    },
-    [setDirectusUrl],
-  );
-
-  const handleDirectusTokenChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      setDirectusToken(e.currentTarget.value);
-    },
-    [setDirectusToken],
-  );
-
-  useEffect(() => {
-    if (directusUrl && directusToken) {
-      const client = createDirectus(directusUrl).with(staticToken(directusToken)).with(rest());
-
-      setDirectusClient(client);
-      setIsDirectusFormShown(false);
-    } else {
-      setDirectusClient(null);
-    }
-  }, [directusUrl, directusToken]);
-
-  if (isDirectusFormShown || !directusUrl || !directusToken) {
+  if (isDirectusFormShown || !directusClient) {
     return (
-      <Container h="95vh">
-        <Flex align="center" justify="center" h="100%">
-          <Box>
-            <Title mt="xl">Setup Directus Connection</Title>
-            <Text mt="md" mb="xl">
-              This app saves your Directus connection in the local storage of your web browser.
-            </Text>
-            <form>
-              <InputLabel htmlFor="directus-url-input">Directus URL</InputLabel>
-              <Input
-                mt="xs"
-                mb="xl"
-                type="url"
-                placeholder="https://directus.example.com"
-                value={directusUrl}
-                onChange={handleDirectusUrlChange}
-              />
-              <InputLabel htmlFor="directus-token-input">Directus Access Token</InputLabel>
-              <Input
-                mt="xs"
-                mb="xl"
-                type="text"
-                placeholder="your-directus-access-token"
-                value={directusToken}
-                onChange={handleDirectusTokenChange}
-              />
-            </form>
-            <Stack gap="sm">
-              <Button onClick={() => setIsDirectusFormShown(false)}>Save Directus Connection</Button>
-              <Button
-                variant="outline"
-                disabled={!directusClient}
-                onClick={() => {
-                  directusClient?.request(serverPing()).then((result) => {
-                    if (result === "pong") {
-                      alert("Connection successful!");
-                    }
-                  });
-                }}
-              >
-                Test Connection
-              </Button>
-            </Stack>
-          </Box>
-        </Flex>
-      </Container>
+      <DirectusForm
+        directusClient={directusClient}
+        setDirectusClient={setDirectusClient}
+        setIsDirectusFormShown={setIsDirectusFormShown}
+      />
     );
   }
 
@@ -220,19 +115,17 @@ export default function Home() {
       </Box>
       <Title mt="md">{currentGame?.Name}</Title>
       <Text size="xs">
-        by {currentGame?.Developers.join(", ")}, release year:{" "}
+        by {currentGame?.Developers ? currentGame?.Developers.join(", ") : "Unknown"}, release year:{" "}
         {currentGame?.Release_Date ? new Date(currentGame.Release_Date).getFullYear() : "N/A"}
       </Text>
       <Grid>
         <GridCol span={{ base: 12, md: 6 }} h="100%">
           <Box my="md" style={{ textAlign: "center" }}>
-            {[...(currentGame?.Spy_Tags || []), ...(currentGame?.Tags || [])]
-              .filter((tag: any) => !TAGS_TO_REMOVE.includes(tag.toLowerCase()))
-              .map((tag: string) => (
-                <Badge key={`tag-${tag}`} mr="xs" mb="xs" size="xs">
-                  {tag}
-                </Badge>
-              ))}
+            {determineTags(currentGame?.Tags || [], currentGame?.Spy_Tags || []).map((tag: any, index: number) => (
+              <Badge key={index} color={tag.color} variant="filled" mr="xs" mb="xs">
+                {tag.name}
+              </Badge>
+            ))}
           </Box>
           <Flex direction="row" align="center" justify="center" gap="xl" my="md">
             <Anchor href={currentGame?.URL} target="_blank" rel="noopener noreferrer" size="sm">
@@ -329,38 +222,4 @@ export default function Home() {
       </Box>
     </Container>
   );
-}
-
-// Note: id is always required as the last option as many of these are optional.
-
-const SORT_CHOICES = [
-  "Name",
-  "Metacritic_Score",
-  "Release_Date",
-  "Steam_Total_Reviews",
-  "Steam_Positive_Reviews",
-  "Steam_Negative_Reviews",
-];
-
-async function loadGameItems(directusClient: RestClient<any>, n: number): Promise<any[]> {
-  // Despite what the docs say, random sorting is not possible in Directus yet. The way we solve for this is to use
-  // pRNG to decide whether sorting is ascending or descending, and what the sort column should even be. The only
-  // thing we're attempting to avoid here is showing the same items repeatedly if the user keeps skipping.
-
-  const isIdDescending = Math.random() < 0.5;
-  const sortColumn = SORT_CHOICES[Math.floor(Math.random() * SORT_CHOICES.length)];
-  const isSortColumnDescending = Math.random() < 0.5;
-
-  const results = await directusClient.request(
-    readItems("Game", {
-      limit: n,
-      sort: [`${isSortColumnDescending ? "-" : ""}${sortColumn}`, `${isIdDescending ? "-" : ""}id`],
-      filter: {
-        Status: "Backlog",
-        Drop_Status: "null",
-      },
-    }),
-  );
-
-  return results.sort(() => Math.random() - 0.5);
 }

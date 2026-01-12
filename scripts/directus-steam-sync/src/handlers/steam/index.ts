@@ -5,7 +5,7 @@ import {
   updateSteamGameInfoCache,
 } from "./caches";
 import { Logger } from "pino";
-import { createSteamGameLookupUrl, fetchOwnedGames, lookupSteamGame, lookupSteamReview } from "./api";
+import { createSteamGameLookupUrl, fetchOwnedGames, lookupSteamGame } from "./api";
 import { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
 import { mapSteamAppToProcessedGameInfo } from "./mappers";
 import { logProgress } from "../../utils/logger";

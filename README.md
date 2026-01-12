@@ -6,6 +6,12 @@ Scripts are all written in TypeScript and use Moonrepo for monorepo management.
 
 This script fetches your Steam library information and syncs it with a Directus instance.
 
+### Prerequisites
+
+```shell
+pnpm exec playwright install
+```
+
 ### Usage
 
 ```shell

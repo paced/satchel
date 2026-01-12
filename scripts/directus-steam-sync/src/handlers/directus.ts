@@ -75,17 +75,6 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
 
     logProgress(steamGameData.indexOf(gameData) + 1, steamGameData.length, "Directus upsert", logger);
 
-    if (directusItemId) {
-      logger.debug(
-        "updating existing Directus item ID %d for Steam App ID %d (%s)",
-        directusItemId,
-        gameData.appId,
-        gameData.name,
-      );
-    } else {
-      logger.debug("creating new Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
-    }
-
     // Note any of the Steam data below can and should be overridden, while the other values remain unchanged.
 
     const data = {
@@ -125,6 +114,13 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
     if (directusItemId) {
       try {
         await DIRECTUS_CLIENT.request(updateItem(DIRECTUS_GAME_COLLECTION_NAME, directusItemId, data));
+
+        logger.debug(
+          "updated Directus item ID %d for Steam App ID %d (%s)",
+          directusItemId,
+          gameData.appId,
+          gameData.name,
+        );
       } catch (err) {
         logger.error(
           "failed to update Directus item ID %d for Steam App ID %d (%s): %s",
@@ -147,6 +143,8 @@ export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[
         // TODO: Handle for this.
 
         await DIRECTUS_CLIENT.request(createItem(DIRECTUS_GAME_COLLECTION_NAME, data));
+
+        logger.debug("created Directus item for Steam App ID %d (%s)", gameData.appId, gameData.name);
       } catch (err) {
         logger.error(
           "failed to create Directus item for Steam App ID %d (%s): %s",

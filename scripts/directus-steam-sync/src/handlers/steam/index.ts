@@ -147,8 +147,6 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   for (const basicGameInfo of basicSteamGameInfos) {
     logProgress(basicSteamGameInfos.indexOf(basicGameInfo) + 1, basicSteamGameInfos.length, "game", logger);
 
-    logger.debug("processing Steam App ID %d...", basicGameInfo.appId);
-
     const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === basicGameInfo.appId);
     if (existingGameIndex !== -1) {
       logger.debug("duplicate app ID %d found, skipping duplicate", basicGameInfo.appId);

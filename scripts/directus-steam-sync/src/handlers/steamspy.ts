@@ -34,8 +34,6 @@ export async function fetchSteamSpyDataForAppIds(
   for (const gameInfo of gameInfos) {
     logProgress(gameInfos.indexOf(gameInfo) + 1, gameInfos.length, "SteamSpy info", logger);
 
-    logger.debug("querying SteamSpy for game: %s (App ID: %d)", gameInfo.name, gameInfo.appId);
-
     if (gameInfo.spy_update_timestamp && finalOptions.useCache) {
       logger.debug("skipping SteamSpy fetch for %s as data already exists", gameInfo.name);
 

@@ -44,7 +44,7 @@ async function main() {
   // STEAM:
 
   if (args.steam_ids.length > 0) {
-    const steamGames = await processSteamGames(
+    const steamGames = await processSteamGamesForMultipleUsers(
       args.steam_ids,
       {
         debug: args.verbose || false,

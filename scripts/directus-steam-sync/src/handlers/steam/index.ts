@@ -74,7 +74,7 @@ interface ProcessGamesOptions {
  * @param logger {Logger} the logger for the CLI
  * @returns {Promise<ProcessedSteamGameInfo[]>} the processed game information
  */
-export async function processSteamGames(
+export async function processSteamGamesForMultipleUsers(
   targetIds: string[],
   options: ProcessGamesOptions = DEFAULT_PROCESS_GAME_OPTIONS,
   logger: Logger,
@@ -84,58 +84,42 @@ export async function processSteamGames(
     ...options,
   };
 
-  const combinedGames: ProcessedSteamGameInfo[] = [];
-  for (const targetId of targetIds) {
-    logger.info(
-      "========= PROCESSING STEAM ID: %s (USER %d of %d) =========",
-      targetId,
-      targetIds.indexOf(targetId) + 1,
-      targetIds.length,
-    );
+  const combinedBasicGameInfosMap: Record<string, BasicSteamGameInfo> = {};
 
-    const userGames = await processSteamGamesForSingleUser(targetId, finalOptions, logger);
-    combinedGames.push(...userGames);
+  for (const targetId of targetIds) {
+    (await fetchOwnedGames(targetId, logger)).forEach((basicSteamGameInfo) => {
+      const existingGame = combinedBasicGameInfosMap[basicSteamGameInfo.appId];
+      if (!existingGame || (existingGame && basicSteamGameInfo.isAdmin && !existingGame.isAdmin)) {
+        combinedBasicGameInfosMap[basicSteamGameInfo.appId] = basicSteamGameInfo;
+      }
+    });
   }
 
-  const uniqueGamesMap: Record<number, ProcessedSteamGameInfo> = {};
-  combinedGames.forEach((game) => {
-    // Overwrite only if the overwriter is the admin user.
+  const combinedBasicGameInfos = Object.values(combinedBasicGameInfosMap).sort((a, b) => a.appId - b.appId);
 
-    if (uniqueGamesMap[game.appId]?.basicData?.isAdmin && !game.basicData?.isAdmin) {
-      logger.debug(
-        "skipping non-admin duplicate app ID %d (%s) with %d hours played in favor of %d hours played",
-        game.appId,
-        game.name,
-        game.basicData?.hours || 0,
-        uniqueGamesMap[game.appId].basicData?.hours || 0,
-      );
-
-      return;
-    }
-
-    uniqueGamesMap[game.appId] = game;
-  });
-
-  const uniqueGames = Object.values(uniqueGamesMap).sort((a, b) => a.appId - b.appId);
-
-  logger.info("total unique Steam games processed across all users: %d", uniqueGames.length);
-
-  return uniqueGames;
+  return await processSteamGames(combinedBasicGameInfos, finalOptions, logger);
 }
 
-async function processSteamGamesForSingleUser(targetSteamId: string, options: ProcessGamesOptions, logger: Logger) {
+async function processSteamGames(
+  basicSteamGameInfos: BasicSteamGameInfo[],
+  options: ProcessGamesOptions,
+  logger: Logger,
+) {
   const finalOptions: ProcessGamesOptions = {
     ...DEFAULT_PROCESS_GAME_OPTIONS,
     ...options,
   };
 
-  const basicSteamGameInfos: BasicSteamGameInfo[] = await fetchOwnedGames(targetSteamId, logger);
-
   logger.info("---------");
-  logger.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
+  logger.info("FINDING DETAILS ABOUT STEAM GAMES");
   logger.info("---------");
 
   const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache ? await loadGameInfoCache(logger) : [];
+  const cachedGameInfosMap: Record<number, ProcessedSteamGameInfo> = {};
+  cachedGameInfos.forEach((cached) => {
+    cachedGameInfosMap[cached.appId] = cached;
+  });
+
   const knownDeletedAppIds: number[] = finalOptions.useCache ? await loadKnownDeletedGamesCache(logger) : [];
 
   const gameInfos: ProcessedSteamGameInfo[] = [];
@@ -146,14 +130,7 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
   for (const basicGameInfo of basicSteamGameInfos) {
     logProgress(basicSteamGameInfos.indexOf(basicGameInfo) + 1, basicSteamGameInfos.length, "game", logger);
 
-    const existingGameIndex = gameInfos.findIndex((gi) => gi.appId === basicGameInfo.appId);
-    if (existingGameIndex !== -1) {
-      logger.debug("duplicate app ID %d found, skipping duplicate", basicGameInfo.appId);
-
-      continue;
-    }
-
-    const cachedGameInfo = cachedGameInfos.find((cached) => cached.appId === basicGameInfo.appId);
+    const cachedGameInfo = cachedGameInfosMap[basicGameInfo.appId];
     if (cachedGameInfo) {
       logger.debug("using cached data for app ID %d", basicGameInfo.appId);
       gameInfos.push({

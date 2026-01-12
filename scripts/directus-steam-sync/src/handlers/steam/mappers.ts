@@ -11,7 +11,12 @@ export function mapSteamAppToProcessedGameInfo(
     return {
       basicData,
 
-      appId: data.steam_appid,
+      // There are cases where app IDs are re-used by Steam for new games after the original is deleted, or for some
+      // other reason, the app ID from owned games doesn't match the one found via the Steam Store API. In cases like
+      // these, we consider them two different games, and thus we save the app ID as the one from the owned games list,
+      // not what is directly shown on the Store API.
+
+      appId: basicData.appId,
       query: query,
 
       name: data.name,

@@ -57,6 +57,10 @@ pnpm run dev
 
 ### Notes
 
+I think maybe there's no point in having this app anymore. The main thing is so I can quickly set statuses on games,
+but since Directus exists and I'd need to check Steam for reviews and other information anyway that doesn't exist
+in-database, I might as well just do it in Directus.
+
 - "Gallery"-like viewing of screenshots is also not yet implemented.
 - "Tags you've engaged with" is also not yet implemented.
 - A recommendations engine is not yet implemented.

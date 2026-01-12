@@ -197,15 +197,25 @@ async function processSteamGames(
   await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
   await updateKnownDeletedGamesCache(knownDeletedAppIds, logger);
 
+  // TODO: Optimize to avoid re-loading cache multiple times.
+
   const refreshedCachedGameInfosA = await loadGameInfoCache(logger);
-  await fetchSteamSpyDataForAppIds(refreshedCachedGameInfosA, { useCache: finalOptions.useCache }, logger);
+  const gameInfosWithSpyInfo = await fetchSteamSpyDataForAppIds(
+    refreshedCachedGameInfosA,
+    { useCache: finalOptions.useCache },
+    logger,
+  );
   const refreshedCachedGameInfosB = await loadGameInfoCache(logger);
-  await updateSteamGameInfoCache(refreshedCachedGameInfosB, gameInfos, logger);
+  await updateSteamGameInfoCache(refreshedCachedGameInfosB, gameInfosWithSpyInfo, logger);
 
   const refreshedCachedGameInfosC = await loadGameInfoCache(logger);
-  await processHltbDataForSteamGames(refreshedCachedGameInfosC, { useCache: finalOptions.useCache }, logger);
+  const gameInfoWithSpyInfoAndHltbData = await processHltbDataForSteamGames(
+    refreshedCachedGameInfosC,
+    { useCache: finalOptions.useCache },
+    logger,
+  );
   const refreshedCachedGameInfosD = await loadGameInfoCache(logger);
-  await updateSteamGameInfoCache(refreshedCachedGameInfosD, gameInfos, logger);
+  await updateSteamGameInfoCache(refreshedCachedGameInfosD, gameInfoWithSpyInfoAndHltbData, logger);
 
   return gameInfos;
 }

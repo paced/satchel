@@ -125,14 +125,19 @@ export async function processSteamGames(
 }
 
 async function processSteamGamesForSingleUser(targetSteamId: string, options: ProcessGamesOptions, logger: Logger) {
+  const finalOptions: ProcessGamesOptions = {
+    ...DEFAULT_PROCESS_GAME_OPTIONS,
+    ...options,
+  };
+
   const basicSteamGameInfos: BasicSteamGameInfo[] = await fetchOwnedGames(targetSteamId, logger);
 
   logger.info("---------");
   logger.info("FINDING DETAILS ABOUT OWNED STEAM GAMES");
   logger.info("---------");
 
-  const cachedGameInfos: ProcessedSteamGameInfo[] = options.useCache ? await loadGameInfoCache(logger) : [];
-  const knownDeletedAppIds: number[] = options.useCache ? await loadKnownDeletedGamesCache(logger) : [];
+  const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache ? await loadGameInfoCache(logger) : [];
+  const knownDeletedAppIds: number[] = finalOptions.useCache ? await loadKnownDeletedGamesCache(logger) : [];
 
   const gameInfos: ProcessedSteamGameInfo[] = [];
   const failedGameInfos: number[] = [];
@@ -171,7 +176,7 @@ async function processSteamGamesForSingleUser(targetSteamId: string, options: Pr
 
     await sleep(STEAM_STORE_API_SLEEP_MS);
 
-    const lookupUrl = createSteamGameLookupUrl(basicGameInfo.appId, options.language || DEFAULT_LANGUAGE);
+    const lookupUrl = createSteamGameLookupUrl(basicGameInfo.appId, finalOptions.language || DEFAULT_LANGUAGE);
     const appData = await lookupSteamGame(lookupUrl).catch((err) => {
       logger.error("HTTP fetch failed for app ID %d: %s", basicGameInfo.appId, err);
 

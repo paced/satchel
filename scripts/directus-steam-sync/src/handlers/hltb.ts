@@ -172,6 +172,9 @@ async function makeHtlbSearchRequest(query: string, authToken: string): Promise<
   });
   const page = await context.newPage();
 
+  // TODO: This probably doesn't need to be done in a browser context, but I struggled to get this working before. Once
+  //       the query count is lower, I should try doing this with a normal fetch.
+
   try {
     const response = await page.request.post("https://howlongtobeat.com/api/search", {
       headers: {

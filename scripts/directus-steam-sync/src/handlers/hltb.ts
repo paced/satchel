@@ -141,7 +141,31 @@ export async function processHltbDataForSteamGames(
       const result = response.data;
 
       if (result && result.length > 0) {
-        const hltbData = result[0];
+        // Iterate the data. Ignore anything with "DLC" in the name. If nothing's a perfect match, take the first.
+
+        let hltbData: any = response.data[0];
+        for (const entry of result) {
+          const entrySanitizedName = sanitizeGameName(entry.game_name);
+          const searchQuerySanitizedName = sanitizeGameName(searchQuery);
+
+          if (entry.game_name.toLowerCase().includes("dlc")) {
+            continue;
+          }
+
+          if (
+            entrySanitizedName === searchQuerySanitizedName ||
+            entrySanitizedName.includes(searchQuerySanitizedName) ||
+            searchQuerySanitizedName.includes(entrySanitizedName)
+          ) {
+            hltbData = entry;
+            break;
+          }
+        }
+
+        // DEBUG
+        if (searchQuery.includes("Sniper Elite")) {
+          console.log(result);
+        }
 
         logger.info(
           "fetched new HLTB data for %s: main=%d, main+extras=%d, completionist=%d",
@@ -278,14 +302,14 @@ async function makeHtlbSearchRequest(query: string, authToken: string): Promise<
       },
       data: {
         searchType: "games",
-        searchTerms: [query],
+        searchTerms: query.split(" "),
         searchPage: 1,
         size: 20,
         searchOptions: {
           games: {
             userId: 0,
             platform: "",
-            sortCategory: "popular",
+            sortCategory: "playing",
             rangeCategory: "main",
             rangeTime: { min: null, max: null },
             gameplay: { perspective: "", flow: "", genre: "", difficulty: "" },
@@ -296,9 +320,9 @@ async function makeHtlbSearchRequest(query: string, authToken: string): Promise<
           lists: { sortCategory: "follows" },
           filter: "",
           sort: 0,
-          randomizer: 0,
+          randomizer: 11298,
         },
-        useCache: true,
+        useCache: false,
       },
     });
 

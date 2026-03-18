@@ -8,7 +8,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "packageManager": "pnpm@10.6.2",
   "dependencies": {
     "@directus/sdk": "^20.3.0",
     "argparse": "^2.0.1",

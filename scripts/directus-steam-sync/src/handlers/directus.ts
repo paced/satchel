@@ -54,10 +54,19 @@ const DIRECTUS_GAME_STEAM_SPY_TAGS_KEY = "Spy_Tags";
 const DIRECTUS_MAX_PAGES = 999;
 const DIRECTUS_ITEMS_PAGE_SIZE = 1000;
 
-const DIRECTUS_CLIENT = createDirectus(DIRECTUS_API_ENDPOINT).with(staticToken(DIRECTUS_API_TOKEN)).with(rest());
+const DIRECTUS_CLIENT = null;
+if (DIRECTUS_API_ENDPOINT && DIRECTUS_API_TOKEN) {
+  createDirectus(DIRECTUS_API_ENDPOINT).with(staticToken(DIRECTUS_API_TOKEN)).with(rest());
+}
 
 export async function upsertAllSteamGames(steamGameData: ProcessedSteamGameInfo[], logger: Logger) {
   // App IDs do NOT match Directus item IDs. We need to always retrieve first.
+
+  if (!DIRECTUS_CLIENT) {
+    logger.error("Directus API endpoint or token not configured; skipping Directus sync");
+
+    return;
+  }
 
   logger.info("---------");
   logger.info("RETRIEVING EXISTING GAMES FROM DIRECTUS");

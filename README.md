@@ -2,7 +2,7 @@
 
 Scripts are all written in TypeScript and use Moonrepo for monorepo management.
 
-## Sync Directus with Steam Library (directus-steam-sync)
+## `directus-steam-sync`
 
 This script fetches your Steam library information and syncs it with a Directus instance.
 
@@ -35,39 +35,3 @@ similar game libraries. If you end up using this, please consider opening PRs wi
   language in the filename so other languages can also be cached.
 - HLTB integration is broken and will be fixed in a future update by implementing the scraping directly.
 - User-defined tags are also not yet implemented.
-
-## Swiper
-
-- A sub-app that allows a simple button interface for adding statuses to items in Directus.
-  - Slider: Replayability score (0-100).
-  - Dropdown: Tier (S, A, B, C, D, E, F, unfinished) - only finished games allowed on here.
-  - Buttons: "Completed, 100%", "Completed, Any%", "Dropped, 50%+ done", "Dropped, partially done", "Dropped, glanced",
-    "Dropped, judged cover".
-
-This allows setting nearly all fields in one convenient app. The only thing it doesn't let you do is set reviews, which
-should be done directly in Directus to games that already have a tier.
-
-Game information such as screenshots, marketplace/store links, IGDB, and HLTB links will be placed on the form to help
-decide, along with a big Metacritic score if available.
-
-### Usage
-
-This is a React application. The production version requires you to input your Directus instance URL and token directly,
-so unless you need to make local changes, there is no real need to run this locally.
-
-Still, if you do:
-
-```shell
-pnpm run dev
-```
-
-### Notes
-
-I think maybe there's no point in having this app anymore. The main thing is so I can quickly set statuses on games,
-but since Directus exists and I'd need to check Steam for reviews and other information anyway that doesn't exist
-in-database, I might as well just do it in Directus.
-
-- "Gallery"-like viewing of screenshots is also not yet implemented.
-- "Tags you've engaged with" is also not yet implemented.
-- A recommendations engine is not yet implemented.
-  - This will be based on a heuristic, not machine learning or generative AI.

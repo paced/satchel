@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@directus/sdk':
         specifier: ^21.0.0
-        version: 21.2.0
+        version: 21.2.1
       argparse:
         specifier: ^2.0.1
         version: 2.0.1
@@ -60,8 +60,8 @@ importers:
 
 packages:
 
-  '@directus/sdk@21.2.0':
-    resolution: {integrity: sha512-IrP6vpXqW0WYuwMcKa19odYZDVdTtBL4+0TaZeUGoNWgvncPcuTYVEtX4z93TEPfbFoSD0IwPx0gbhQ7YNbTGg==}
+  '@directus/sdk@21.2.1':
+    resolution: {integrity: sha512-eXLOwj9Y/+JgNJmGMNLAwlaj7C2TMuKaQNrAjis/WjFTYuR1frSFJOsZhvXPTaoOQ5F+vDBAr3ZGSG3QfKeCnA==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.27.4':
@@ -935,7 +935,7 @@ packages:
 
 snapshots:
 
-  '@directus/sdk@21.2.0': {}
+  '@directus/sdk@21.2.1': {}
 
   '@esbuild/aix-ppc64@0.27.4':
     optional: true

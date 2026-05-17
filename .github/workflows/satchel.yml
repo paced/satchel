@@ -1,4 +1,4 @@
-name: Directus Steam Sync CI/CD
+name: Satchel CI/CD
 on:
   push:
   workflow_dispatch:

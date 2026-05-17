@@ -1,6 +1,0 @@
-$schema: https://moonrepo.dev/schemas/workspace.json
-projects:
-- scripts/directus-steam-sync
-vcs:
-  defaultBranch: main
-  client: git

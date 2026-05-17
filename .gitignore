@@ -38,14 +38,10 @@ next-env.d.ts
 .vs/
 .idea/
 
-# moon
-.moon/cache
-.moon/docker
-
 # project
-!scripts/directus-steam-sync/out/
-scripts/directus-steam-sync/out/*
-!scripts/directus-steam-sync/out/steam-game-info-cache.json
-!scripts/directus-steam-sync/out/steam-known-deleted-games-cache.json
-!scripts/directus-steam-sync/out/steam-dissimilar-games-cache.txt
-!scripts/directus-steam-sync/out/steam-unconfident-games-cache.txt
+!out/
+out/*
+!/out/steam-game-info-cache.json
+!/out/steam-known-deleted-games-cache.json
+!/out/steam-dissimilar-games-cache.txt
+!/out/steam-unconfident-games-cache.txt

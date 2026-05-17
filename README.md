@@ -1,14 +1,11 @@
 # satchel
 
-Scripts are all written in TypeScript and use Moonrepo for monorepo management.
-
-## `directus-steam-sync`
-
 This script fetches your Steam library information and syncs it with a Directus instance.
 
 ### Prerequisites
 
 ```shell
+pnpm exec playwright install-deps
 pnpm exec playwright install
 ```
 

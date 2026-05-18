@@ -1,12 +1,7 @@
 {
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
   "timezone": "Australia/Melbourne",
-  "schedule": [
-    "after 9am on thursday",
-    "before 12pm on thursday"
-  ],
+  "schedule": ["after 9am on thursday", "before 12pm on thursday"],
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": true,
@@ -16,37 +11,22 @@
   "packageRules": [
     {
       "groupName": "chore: dev dependencies safe update",
-      "matchDepTypes": [
-        "devDependencies"
-      ],
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
       "automerge": true,
       "automergeType": "branch"
     },
     {
       "groupName": "task: dependencies safe update",
-      "matchDepTypes": [
-        "dependencies"
-      ],
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
       "automerge": true,
       "automergeType": "branch"
     },
     {
       "groupName": "task: peer dependencies safe update",
-      "matchDepTypes": [
-        "peerDependencies"
-      ],
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ],
+      "matchDepTypes": ["peerDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
       "automerge": true,
       "automergeType": "branch"
     }

@@ -1,7 +1,7 @@
-import { type Logger } from "pino";
 import { config } from "dotenv";
+import type { Logger } from "pino";
 import { updateOwnedGamesCache } from "./caches";
-import { type BasicSteamGameInfo } from "./types";
+import type { BasicSteamGameInfo } from "./types";
 
 const { parsed } = config({ quiet: true });
 
@@ -14,65 +14,74 @@ const STEAM_API_GET_OWNED_GAMES_METHOD = "IPlayerService/GetOwnedGames/v0001";
 const STEAM_STORE_API_APP_DETAILS_METHOD = "appdetails";
 
 export async function fetchOwnedGames(targetSteamId: string, logger: Logger) {
-  logger.info("---------");
-  logger.info("DETERMINING USER'S STEAM GAMES");
-  logger.info("---------");
+	logger.info("---------");
+	logger.info("DETERMINING USER'S STEAM GAMES");
+	logger.info("---------");
 
-  logger.info("(re)fetching library games for SteamID %s...", targetSteamId);
+	logger.info("(re)fetching library games for SteamID %s...", targetSteamId);
 
-  const steamApiUrl = new URL(`${STEAM_API_ENDPOINT}/${STEAM_API_GET_OWNED_GAMES_METHOD}/`);
+	const steamApiUrl = new URL(
+		`${STEAM_API_ENDPOINT}/${STEAM_API_GET_OWNED_GAMES_METHOD}/`,
+	);
 
-  steamApiUrl.searchParams.append("key", STEAM_API_KEY);
-  steamApiUrl.searchParams.append("steamid", targetSteamId);
-  steamApiUrl.searchParams.append("format", "json");
+	steamApiUrl.searchParams.append("key", STEAM_API_KEY);
+	steamApiUrl.searchParams.append("steamid", targetSteamId);
+	steamApiUrl.searchParams.append("format", "json");
 
-  const steamApiUrlString = steamApiUrl.href;
+	const steamApiUrlString = steamApiUrl.href;
 
-  logger.debug("fetching Steam data from URL: %s...", steamApiUrlString);
+	logger.debug("fetching Steam data from URL: %s...", steamApiUrlString);
 
-  const result = await fetch(steamApiUrlString);
+	const result = await fetch(steamApiUrlString);
 
-  const data = await result.json();
+	const data = await result.json();
 
-  const gameCount = data.response.game_count;
-  const games = data.response.games;
+	const gameCount = data.response.game_count;
+	const games = data.response.games;
 
-  logger.info(`...(re)fetch complete; user has %d games in their library`, gameCount);
+	logger.info(
+		`...(re)fetch complete; user has %d games in their library`,
+		gameCount,
+	);
 
-  const basicSteamGameInfos: BasicSteamGameInfo[] = [];
-  games.forEach((game: any) => {
-    // This information might not be present for other users than the API key-holder.
+	const basicSteamGameInfos: BasicSteamGameInfo[] = [];
+	games.forEach((game: any) => {
+		// This information might not be present for other users than the API key-holder.
 
-    const lastPlayedUnix = game.rtime_last_played; // 0 if unplayed, null if not APIkey holder account.
-    const lastPlayedIsoDate = lastPlayedUnix ? new Date(lastPlayedUnix * 1000).toISOString() : undefined;
-    basicSteamGameInfos.push({
-      isAdmin: lastPlayedUnix !== undefined && lastPlayedUnix !== null,
-      appId: game.appid,
-      hours: Math.round((game.playtime_forever || 0) / 60),
-      lastPlayed: lastPlayedIsoDate,
-      lastPlayedUnix,
-    });
-  });
+		const lastPlayedUnix = game.rtime_last_played; // 0 if unplayed, null if not APIkey holder account.
+		const lastPlayedIsoDate = lastPlayedUnix
+			? new Date(lastPlayedUnix * 1000).toISOString()
+			: undefined;
+		basicSteamGameInfos.push({
+			isAdmin: lastPlayedUnix !== undefined && lastPlayedUnix !== null,
+			appId: game.appid,
+			hours: Math.round((game.playtime_forever || 0) / 60),
+			lastPlayed: lastPlayedIsoDate,
+			lastPlayedUnix,
+		});
+	});
 
-  await updateOwnedGamesCache(targetSteamId, basicSteamGameInfos, logger);
+	await updateOwnedGamesCache(targetSteamId, basicSteamGameInfos, logger);
 
-  return basicSteamGameInfos;
+	return basicSteamGameInfos;
 }
 
 export function createSteamGameLookupUrl(appId: number, language: string) {
-  const steamStoreApiUrl = new URL(`${STEAM_STORE_API_ENDPOINT}/${STEAM_STORE_API_APP_DETAILS_METHOD}/`);
+	const steamStoreApiUrl = new URL(
+		`${STEAM_STORE_API_ENDPOINT}/${STEAM_STORE_API_APP_DETAILS_METHOD}/`,
+	);
 
-  steamStoreApiUrl.searchParams.append("appids", appId.toString());
-  steamStoreApiUrl.searchParams.append("l", language);
+	steamStoreApiUrl.searchParams.append("appids", appId.toString());
+	steamStoreApiUrl.searchParams.append("l", language);
 
-  return steamStoreApiUrl.toString();
+	return steamStoreApiUrl.toString();
 }
 
 export async function lookupSteamGame(steamStoreApiUrlString: string) {
-  const result = await fetch(steamStoreApiUrlString);
-  if (result.status === 429) {
-    throw new Error("rate limited by Steam Store API");
-  }
+	const result = await fetch(steamStoreApiUrlString);
+	if (result.status === 429) {
+		throw new Error("rate limited by Steam Store API");
+	}
 
-  return await result.json();
+	return await result.json();
 }

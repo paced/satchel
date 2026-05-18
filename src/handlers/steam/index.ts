@@ -1,17 +1,21 @@
-import {
-  loadGameInfoCache,
-  loadKnownDeletedGamesCache,
-  updateKnownDeletedGamesCache,
-  updateSteamGameInfoCache,
-} from "./caches";
-import { Logger } from "pino";
-import { createSteamGameLookupUrl, fetchOwnedGames, lookupSteamGame } from "./api";
-import { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
-import { mapSteamAppToProcessedGameInfo } from "./mappers";
+import type { Logger } from "pino";
 import { logProgress } from "../../utils/logger";
 import sleep from "../../utils/sleep";
-import { fetchSteamSpyDataForAppIds } from "../steamspy";
 import { processHltbDataForSteamGames } from "../hltb";
+import { fetchSteamSpyDataForAppIds } from "../steamspy";
+import {
+	createSteamGameLookupUrl,
+	fetchOwnedGames,
+	lookupSteamGame,
+} from "./api";
+import {
+	loadGameInfoCache,
+	loadKnownDeletedGamesCache,
+	updateKnownDeletedGamesCache,
+	updateSteamGameInfoCache,
+} from "./caches";
+import { mapSteamAppToProcessedGameInfo } from "./mappers";
+import type { BasicSteamGameInfo, ProcessedSteamGameInfo } from "./types";
 
 /**
  * Delay between Steam Store API requests to avoid rate limiting.
@@ -31,21 +35,21 @@ const STEAM_STORE_API_SLEEP_MS = 3000;
 
 const DEFAULT_LANGUAGE = "english";
 const DEFAULT_PROCESS_GAME_OPTIONS: ProcessGamesOptions = {
-  debug: false,
-  language: DEFAULT_LANGUAGE,
-  useCache: true,
+	debug: false,
+	language: DEFAULT_LANGUAGE,
+	useCache: true,
 };
 
 interface ProcessGamesOptions {
-  debug?: boolean;
-  language?: string;
+	debug?: boolean;
+	language?: string;
 
-  /**
-   * Whether to use the existing game info cache to avoid re-fetching data from the Steam Store API.
-   */
-  useCache?: boolean;
+	/**
+	 * Whether to use the existing game info cache to avoid re-fetching data from the Steam Store API.
+	 */
+	useCache?: boolean;
 
-  daysToRecheckReviewsIfCached?: number;
+	daysToRecheckReviewsIfCached?: number;
 }
 
 // TODO: Make top level function where all the logs are and other functions more pure.
@@ -75,147 +79,193 @@ interface ProcessGamesOptions {
  * @returns {Promise<ProcessedSteamGameInfo[]>} the processed game information
  */
 export async function processSteamGamesForMultipleUsers(
-  targetIds: string[],
-  options: ProcessGamesOptions = DEFAULT_PROCESS_GAME_OPTIONS,
-  logger: Logger,
+	targetIds: string[],
+	options: ProcessGamesOptions = DEFAULT_PROCESS_GAME_OPTIONS,
+	logger: Logger,
 ): Promise<ProcessedSteamGameInfo[]> {
-  const finalOptions: ProcessGamesOptions = {
-    ...DEFAULT_PROCESS_GAME_OPTIONS,
-    ...options,
-  };
+	const finalOptions: ProcessGamesOptions = {
+		...DEFAULT_PROCESS_GAME_OPTIONS,
+		...options,
+	};
 
-  const combinedBasicGameInfosMap: Record<string, BasicSteamGameInfo> = {};
+	const combinedBasicGameInfosMap: Record<string, BasicSteamGameInfo> = {};
 
-  for (const targetId of targetIds) {
-    (await fetchOwnedGames(targetId, logger)).forEach((basicSteamGameInfo) => {
-      const existingGame = combinedBasicGameInfosMap[basicSteamGameInfo.appId];
-      if (!existingGame || (existingGame && basicSteamGameInfo.isAdmin && !existingGame.isAdmin)) {
-        combinedBasicGameInfosMap[basicSteamGameInfo.appId] = basicSteamGameInfo;
-      }
-    });
-  }
+	for (const targetId of targetIds) {
+		(await fetchOwnedGames(targetId, logger)).forEach((basicSteamGameInfo) => {
+			const existingGame = combinedBasicGameInfosMap[basicSteamGameInfo.appId];
+			if (
+				!existingGame ||
+				(existingGame && basicSteamGameInfo.isAdmin && !existingGame.isAdmin)
+			) {
+				combinedBasicGameInfosMap[basicSteamGameInfo.appId] =
+					basicSteamGameInfo;
+			}
+		});
+	}
 
-  const combinedBasicGameInfos = Object.values(combinedBasicGameInfosMap).sort((a, b) => a.appId - b.appId);
+	const combinedBasicGameInfos = Object.values(combinedBasicGameInfosMap).sort(
+		(a, b) => a.appId - b.appId,
+	);
 
-  return await processSteamGames(combinedBasicGameInfos, finalOptions, logger);
+	return await processSteamGames(combinedBasicGameInfos, finalOptions, logger);
 }
 
 async function processSteamGames(
-  basicSteamGameInfos: BasicSteamGameInfo[],
-  options: ProcessGamesOptions,
-  logger: Logger,
+	basicSteamGameInfos: BasicSteamGameInfo[],
+	options: ProcessGamesOptions,
+	logger: Logger,
 ) {
-  const finalOptions: ProcessGamesOptions = {
-    ...DEFAULT_PROCESS_GAME_OPTIONS,
-    ...options,
-  };
+	const finalOptions: ProcessGamesOptions = {
+		...DEFAULT_PROCESS_GAME_OPTIONS,
+		...options,
+	};
 
-  logger.info("---------");
-  logger.info("FINDING DETAILS ABOUT STEAM GAMES");
-  logger.info("---------");
+	logger.info("---------");
+	logger.info("FINDING DETAILS ABOUT STEAM GAMES");
+	logger.info("---------");
 
-  const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache ? await loadGameInfoCache(logger) : [];
-  const cachedGameInfosMap: Record<number, ProcessedSteamGameInfo> = {};
-  cachedGameInfos.forEach((cached) => {
-    cachedGameInfosMap[cached.appId] = cached;
-  });
+	const cachedGameInfos: ProcessedSteamGameInfo[] = finalOptions.useCache
+		? await loadGameInfoCache(logger)
+		: [];
+	const cachedGameInfosMap: Record<number, ProcessedSteamGameInfo> = {};
+	cachedGameInfos.forEach((cached) => {
+		cachedGameInfosMap[cached.appId] = cached;
+	});
 
-  const knownDeletedAppIds: number[] = finalOptions.useCache ? await loadKnownDeletedGamesCache(logger) : [];
+	const knownDeletedAppIds: number[] = finalOptions.useCache
+		? await loadKnownDeletedGamesCache(logger)
+		: [];
 
-  const gameInfos: ProcessedSteamGameInfo[] = [];
-  const failedGameInfos: number[] = [];
+	const gameInfos: ProcessedSteamGameInfo[] = [];
+	const failedGameInfos: number[] = [];
 
-  logger.info("beginning processing of %d owned Steam games...", basicSteamGameInfos.length);
+	logger.info(
+		"beginning processing of %d owned Steam games...",
+		basicSteamGameInfos.length,
+	);
 
-  for (const basicGameInfo of basicSteamGameInfos) {
-    logProgress(basicSteamGameInfos.indexOf(basicGameInfo) + 1, basicSteamGameInfos.length, "game", logger);
+	for (const basicGameInfo of basicSteamGameInfos) {
+		logProgress(
+			basicSteamGameInfos.indexOf(basicGameInfo) + 1,
+			basicSteamGameInfos.length,
+			"game",
+			logger,
+		);
 
-    const cachedGameInfo = cachedGameInfosMap[basicGameInfo.appId];
-    if (cachedGameInfo) {
-      logger.debug("using cached data for app ID %d", basicGameInfo.appId);
-      gameInfos.push({
-        ...cachedGameInfo,
-        basicData: basicGameInfo,
-      });
+		const cachedGameInfo = cachedGameInfosMap[basicGameInfo.appId];
+		if (cachedGameInfo) {
+			logger.debug("using cached data for app ID %d", basicGameInfo.appId);
+			gameInfos.push({
+				...cachedGameInfo,
+				basicData: basicGameInfo,
+			});
 
-      continue;
-    }
+			continue;
+		}
 
-    if (knownDeletedAppIds.includes(basicGameInfo.appId)) {
-      logger.debug("skipping known deleted app ID %d", basicGameInfo.appId);
-      failedGameInfos.push(basicGameInfo.appId);
+		if (knownDeletedAppIds.includes(basicGameInfo.appId)) {
+			logger.debug("skipping known deleted app ID %d", basicGameInfo.appId);
+			failedGameInfos.push(basicGameInfo.appId);
 
-      continue;
-    }
+			continue;
+		}
 
-    await sleep(STEAM_STORE_API_SLEEP_MS);
+		await sleep(STEAM_STORE_API_SLEEP_MS);
 
-    const lookupUrl = createSteamGameLookupUrl(basicGameInfo.appId, finalOptions.language || DEFAULT_LANGUAGE);
-    const appData = await lookupSteamGame(lookupUrl).catch((err) => {
-      logger.error("HTTP fetch failed for app ID %d: %s", basicGameInfo.appId, err);
+		const lookupUrl = createSteamGameLookupUrl(
+			basicGameInfo.appId,
+			finalOptions.language || DEFAULT_LANGUAGE,
+		);
+		const appData = await lookupSteamGame(lookupUrl).catch((err) => {
+			logger.error(
+				"HTTP fetch failed for app ID %d: %s",
+				basicGameInfo.appId,
+				err,
+			);
 
-      return;
-    });
+			return;
+		});
 
-    if (!appData || !appData[basicGameInfo.appId]) {
-      logger.error("fetch didn't return data for app ID %d, skipping...", basicGameInfo.appId);
+		if (!appData || !appData[basicGameInfo.appId]) {
+			logger.error(
+				"fetch didn't return data for app ID %d, skipping...",
+				basicGameInfo.appId,
+			);
 
-      continue;
-    }
+			continue;
+		}
 
-    if (!appData[basicGameInfo.appId].success) {
-      logger.warn("fetch succeeded but success is false for app ID %d", basicGameInfo.appId);
-      failedGameInfos.push(basicGameInfo.appId);
+		if (!appData[basicGameInfo.appId].success) {
+			logger.warn(
+				"fetch succeeded but success is false for app ID %d",
+				basicGameInfo.appId,
+			);
+			failedGameInfos.push(basicGameInfo.appId);
 
-      if (appData[basicGameInfo.appId] && appData[basicGameInfo.appId].success === false) {
-        knownDeletedAppIds.push(basicGameInfo.appId);
-      }
+			if (
+				appData[basicGameInfo.appId] &&
+				appData[basicGameInfo.appId].success === false
+			) {
+				knownDeletedAppIds.push(basicGameInfo.appId);
+			}
 
-      continue;
-    }
+			continue;
+		}
 
-    const parsedGameInfo = mapSteamAppToProcessedGameInfo(
-      basicGameInfo,
-      appData[basicGameInfo.appId].data,
-      lookupUrl,
-      logger,
-    );
-    if (parsedGameInfo) {
-      logger.info("processed new app ID %d: %s", basicGameInfo.appId, parsedGameInfo.name);
+		const parsedGameInfo = mapSteamAppToProcessedGameInfo(
+			basicGameInfo,
+			appData[basicGameInfo.appId].data,
+			lookupUrl,
+			logger,
+		);
+		if (parsedGameInfo) {
+			logger.info(
+				"processed new app ID %d: %s",
+				basicGameInfo.appId,
+				parsedGameInfo.name,
+			);
 
-      gameInfos.push(parsedGameInfo);
-    }
-  }
+			gameInfos.push(parsedGameInfo);
+		}
+	}
 
-  if (failedGameInfos.length > 0) {
-    logger.warn(`could not/skipped process %d games`, failedGameInfos.length);
-    failedGameInfos.forEach((game) => {
-      logger.warn(` - app ID ${game}`);
-    });
-  }
+	if (failedGameInfos.length > 0) {
+		logger.warn(`could not/skipped process %d games`, failedGameInfos.length);
+		failedGameInfos.forEach((game) => {
+			logger.warn(` - app ID ${game}`);
+		});
+	}
 
-  await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
-  await updateKnownDeletedGamesCache(knownDeletedAppIds, logger);
+	await updateSteamGameInfoCache(cachedGameInfos, gameInfos, logger);
+	await updateKnownDeletedGamesCache(knownDeletedAppIds, logger);
 
-  // TODO: Optimize to avoid re-loading cache multiple times.
+	// TODO: Optimize to avoid re-loading cache multiple times.
 
-  const refreshedCachedGameInfosA = await loadGameInfoCache(logger);
-  const gameInfosWithSpyInfo = await fetchSteamSpyDataForAppIds(
-    refreshedCachedGameInfosA,
-    { useCache: finalOptions.useCache },
-    logger,
-  );
-  const refreshedCachedGameInfosB = await loadGameInfoCache(logger);
-  await updateSteamGameInfoCache(refreshedCachedGameInfosB, gameInfosWithSpyInfo, logger);
+	const refreshedCachedGameInfosA = await loadGameInfoCache(logger);
+	const gameInfosWithSpyInfo = await fetchSteamSpyDataForAppIds(
+		refreshedCachedGameInfosA,
+		{ useCache: finalOptions.useCache },
+		logger,
+	);
+	const refreshedCachedGameInfosB = await loadGameInfoCache(logger);
+	await updateSteamGameInfoCache(
+		refreshedCachedGameInfosB,
+		gameInfosWithSpyInfo,
+		logger,
+	);
 
-  const refreshedCachedGameInfosC = await loadGameInfoCache(logger);
-  const gameInfoWithSpyInfoAndHltbData = await processHltbDataForSteamGames(
-    refreshedCachedGameInfosC,
-    { useCache: finalOptions.useCache },
-    logger,
-  );
-  const refreshedCachedGameInfosD = await loadGameInfoCache(logger);
-  await updateSteamGameInfoCache(refreshedCachedGameInfosD, gameInfoWithSpyInfoAndHltbData, logger);
+	const refreshedCachedGameInfosC = await loadGameInfoCache(logger);
+	const gameInfoWithSpyInfoAndHltbData = await processHltbDataForSteamGames(
+		refreshedCachedGameInfosC,
+		{ useCache: finalOptions.useCache },
+		logger,
+	);
+	const refreshedCachedGameInfosD = await loadGameInfoCache(logger);
+	await updateSteamGameInfoCache(
+		refreshedCachedGameInfosD,
+		gameInfoWithSpyInfoAndHltbData,
+		logger,
+	);
 
-  return gameInfoWithSpyInfoAndHltbData;
+	return gameInfoWithSpyInfoAndHltbData;
 }

@@ -1,20 +1,20 @@
 {
-  "compilerOptions": {
-    "outDir": "build",
-    "target": "esnext",
-    "lib": ["esnext", "DOM"],
-    "module": "esnext",
-    "moduleResolution": "node",
-    "allowJs": false,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "moduleDetection": "force",
-    "isolatedModules": true,
-    "incremental": true,
-    "types": []
-  },
-  "include": ["src", "test"],
-  "exclude": ["node_modules"]
+	"compilerOptions": {
+		"outDir": "build",
+		"target": "esnext",
+		"lib": ["esnext", "DOM"],
+		"module": "esnext",
+		"moduleResolution": "node",
+		"allowJs": false,
+		"strict": true,
+		"forceConsistentCasingInFileNames": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"moduleDetection": "force",
+		"isolatedModules": true,
+		"incremental": true,
+		"types": []
+	},
+	"include": ["src", "test"],
+	"exclude": ["node_modules"]
 }

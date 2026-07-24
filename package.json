@@ -12,7 +12,7 @@
 		"format:check": "biome format"
 	},
 	"dependencies": {
-		"@directus/sdk": "^21.0.0",
+		"@directus/sdk": "^23.0.0",
 		"argparse": "^2.0.1",
 		"dotenv": "^17.2.3",
 		"pino": "^10.1.1",

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@directus/sdk':
-        specifier: ^21.0.0
-        version: 21.3.0
+        specifier: ^25.0.0
+        version: 25.0.1
       argparse:
         specifier: ^2.0.1
         version: 2.0.1
@@ -111,8 +111,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@directus/sdk@21.3.0':
-    resolution: {integrity: sha512-ozK2OmlaBiCuP5RuL046CaGGqEnlOdl4Rg690qaOgbC0C45XnDZVeBlb+NDLTUqEj88iSX8Cv74G3qh0L2i7Yw==}
+  '@directus/sdk@25.0.1':
+    resolution: {integrity: sha512-7YatQh8aKDN6iIPyXmbUc3HW/jdKveiwFP+oFSKs0/W/IKX+ZpnwsN1NQLI6PpcmU2/rLuYK8knQaQr5F0gKNw==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -652,7 +652,7 @@ snapshots:
   '@biomejs/cli-win32-x64@2.5.11':
     optional: true
 
-  '@directus/sdk@21.3.0': {}
+  '@directus/sdk@25.0.1': {}
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true

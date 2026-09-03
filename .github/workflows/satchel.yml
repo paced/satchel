@@ -18,7 +18,7 @@ jobs:
           node-version: 24
       - uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 11
       - run: pnpm install
       - run: pnpm run format:check
       # - run: pnpm run lint
